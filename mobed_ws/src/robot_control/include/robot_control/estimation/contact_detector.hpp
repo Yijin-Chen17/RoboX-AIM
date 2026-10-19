@@ -71,6 +71,20 @@ public:
     virtual bool rearImpactDetected() const;
 
     /**
+     * @brief Check if an impact was detected on a specific leg.
+     * @param leg_idx Leg index [FL=0, FR=1, RL=2, RR=3]
+     * @return true if specified leg detected collision this cycle
+     */
+    virtual bool isLegImpacted(int leg_idx) const {
+        return (leg_idx >= 0 && leg_idx < NUM_LEGS) ? impact_flags_[leg_idx] : false;
+    }
+
+    /**
+     * @brief Get decoupled per-wheel external obstacle torque vector (Nm).
+     */
+    Eigen::Vector4d getWheelExtTorques() const { return wheel_ext_torques_; }
+
+    /**
      * @brief Get per-leg impact detection flags.
      * @return Array of 4 booleans [FL, FR, RL, RR]
      */
@@ -118,18 +132,24 @@ private:
     double front_evidence_sustain_timer_ = 0.0;
     double prev_cmd_vel_ = 0.0;
 
+    // Single-Wheel Generalized Momentum Observer (GMO) & Per-Leg Impact State
+    Eigen::Vector4d wheel_ext_torques_ = Eigen::Vector4d::Zero();
+    Eigen::Vector4d prev_wheel_velocities_ = Eigen::Vector4d::Zero();
+    std::array<int, NUM_LEGS> leg_impact_cycles_ = {0, 0, 0, 0};
+    static constexpr double WHEEL_INERTIA_J = 0.0038; // kg*m^2 (wheel + tire rotational inertia)
+    static constexpr int REQUIRED_CONFIRM_CYCLES = 4; // 4 cycles (8ms at 500Hz)
+
     // Consistency Gate Thresholds and Filters
-    double imu_decel_shock_threshold_ = -0.75;  // m/s^2, longitudinal impact shock
+    double imu_decel_shock_threshold_ = -0.70;  // m/s^2, longitudinal impact shock
     double wheel_stall_vel_max_       = 0.8;    // rad/s, maximum wheel speed during true stall
     double wheel_stall_torque_min_    = 2.2;    // N·m, minimum reaction torque during stall (scaled with command)
     int    impact_confirm_cycles_     = 0;      // Consecutive confirmation cycles
-    static constexpr int REQUIRED_CONFIRM_CYCLES = 3; // 3 cycles (30ms at 100Hz)
 
     // Generalized Momentum Observer & Fast Reaction Jump for rear wall collision
     double momentum_residual_ = 0.0;
     double momentum_observer_z_ = 0.0;
     int    rear_impact_confirm_cycles_ = 0;
-    static constexpr int REQUIRED_REAR_CONFIRM_CYCLES = 3; // 3 cycles (30ms at 100Hz)
+    static constexpr int REQUIRED_REAR_CONFIRM_CYCLES = 4; // 4 cycles (8ms at 500Hz)
     Eigen::Vector4d delta_tau_ecc_ = Eigen::Vector4d::Zero();
     Eigen::Vector4d ecc_effort_baseline_ = Eigen::Vector4d::Zero();
 

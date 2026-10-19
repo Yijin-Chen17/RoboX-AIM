@@ -15,52 +15,92 @@ namespace tasks {
 /**
  * @brief Climbing FSM states.
  *
- * Implements physics-closed-loop wall-traction climbing with pitch compliance:
- *   IDLE → FRONT_WALL_CLIMB → FRONT_PLACED →
- *   REAR_WALL_CLIMB (Stage R1) → REAR_CREST_FOLD (Stage R2) →
- *   REAR_PLACED → IDLE
+ * Implements high-speed dynamic momentum vault climbing (0.46s continuous traversal):
+ *   IDLE -> VAULT_FRONT (0.15s) -> STRADDLE_RUN (0.16s) -> VAULT_REAR (0.15s) -> CLIMBED_RUN
  */
-enum class ClimbState {
-    IDLE,               // Normal driving, monitoring for front wheel impact / wall-roll
-    FRONT_WALL_CLIMB,   // Front wheels climb wall, eccentric arms fold with pitch feedback
-    STRADDLE_LEVELING,  // Front wheels on curb, advancing until rear wheels touch wall
-    FRONT_PLACED = STRADDLE_LEVELING, // Backward-compatible alias
-    STRADDLE_HOLD,      // Operator pause hold: locking stance, wheels braked, closed-loop balance active
-    REAR_WALL_CLIMB,    // Rear wheels at wall (80~110mm: snap-sweep; 200mm: gentle soft descent onto curb)
-    REAR_VAULT_LOOP,    // 200mm only: high-speed 360-degree forward loop over curb lip
-    REAR_TOUCHDOWN_SETTLE, // 200mm only: 0.20s stance freeze & damping buffer upon landing
-    REAR_CREEP_ADVANCE, // 200mm only: 0.12 m/s creeping forward 50~80mm onto plateau away from edge
-    REAR_CREST_FOLD,    // 80~110mm: 0.18s snap-kick (+35Nm downforce); 200mm: coordinated chassis lift
-    REAR_POST_CLIMB_RESET, // 200mm only: 0.80s smooth ground roll reset of rear legs from -5.63 to -6.93 (-0.65)
-    REAR_PLACED,        // All wheels on top of curb, advance 0.25m into plateau then release to IDLE
+enum class ClimbState : int {
+    IDLE                  = 0, // 待命冲刺: C++原生 0.22m 极限最高姿态 (q=0), 100% 手动操控
+    FRONT_WALL_CLIMB      = 1, // 前探咬合翻越: 0 -> +1.25 rad (0.28s)
+    STRADDLE_LEVELING     = 2, // 跨步前驱: 前轮在台阶顶面强拉 0.45m/s (+1.85 rad)
+    REAR_BELLY_REST       = 3, // 后底盘搁置: 前轮制动, 后偏心折叠至 -1.20rad, 贴靠台阶角 (0.35s)
+    REAR_VAULT_LOOP       = 4, // 后轮空中甩翻: 前轮拖车 0.38m/s, 后轮空中轻甩 -1.20 -> -4.65rad (0.30s)
+    REAR_CREEP_ADVANCE    = 5, // 四轮爬行: 前行 50mm 完全脱离台阶边缘 (0.30s)
+    POST_CLIMB_RESET      = 6, // 同步复位: 四腿平滑复位至最高站姿 210.5mm 间隙 (0.50s)
+    CLIMBED_RUN           = 7, // 平台疾驰: 锁定最高站姿, 100% 手动操控
+    // Backward-compatible aliases
+    FRONT_VAULT_180       = 1,
+    VAULT_FRONT           = 1,
+    STRADDLE_BELLY_SLIDE  = 3,
+    STRADDLE_RUN          = 2,
+    VAULT_REAR            = 4,
+    REAR_WALL_CLIMB       = 3,
+    REAR_POST_CLIMB_RESET = 6,
+    REAR_PLACED           = 7,
+    REAR_TOUCHDOWN_SETTLE = 7,
+    REAR_CREST_FOLD       = 7,
+    STRADDLE_HOLD         = 0
+};
+
+/**
+ * @brief Independent Single-Leg State Machine.
+ */
+enum class LegState : int {
+    CRUISE          = 0, // High-stance cruise / approach, monitoring wheel contact
+    VAULT_SWING     = 1, // Smooth S-curve swing
+    PLANTED_SUPPORT = 2, // Support point, full traction pull
+    COMPLETED       = 3  // Finished, continuous cruising
+};
+
+struct SingleLegFSM {
+    LegState state = LegState::CRUISE;
+    double timer = 0.0;
+    double plateau_distance = 0.0;
+    double start_angle = 0.0;
+    double target_angle = 0.0;
+    bool impact_confirmed = false;
 };
 
 /**
  * @brief Parameters for the climbing task controller.
  */
 struct TaskControllerParams {
-    double target_curb_height = 0.08;   // m (0.04m ~ 0.22m continuous adaptive range)
-    double curb_margin = 0.015;          // m (clearance safety margin)
-    double wheelbase = 0.300;            // m (chassis wheelbase: 2 * length_x)
-    double wheel_radius = 0.100;         // m (MuJoCo calibrated wheel radius)
+    double target_curb_height = 0.20;    // m (200mm high step challenge)
+    double curb_margin = 0.015;           // m
+    double wheelbase = 0.300;             // m
+    double wheel_radius = 0.100;          // m
 
     // Mode Profile
-    ClimbMode climb_mode = ClimbMode::ADAPTIVE;
-    double front_roll_speed = 2.5;       // rad/s (traction roll assist on front wheels)
-    double rear_roll_speed = 2.5;        // rad/s (traction roll assist on rear wheels)
-    bool active_pitch_counter_balance = true;
+    ClimbMode climb_mode = ClimbMode::PAPER_NORMAL;
 
-    // Durations & speeds
-    double forward_drive_speed = 0.20;   // m/s
-    double settling_distance = 0.25;     // m (forward advance onto plateau before exiting FSM)
-    double settling_duration = 1.50;     // s (max settling duration guard)
-    double blend_out_duration = 0.40;    // s
-    double cooldown_duration = 1.0;      // s
+    // Front-Vault 180 & Rear Belly-Rest Hybrid Parameters
+    double front_vault_duration      = 0.24;  // s (front 180-deg vault swing)
+    double front_vault_180_duration  = 0.24;  // alias
+    double rear_belly_rest_duration  = 0.35;  // s (rear belly rest descent)
+    double straddle_slide_duration   = 0.35;  // alias
+    double rear_vault_duration       = 0.30;  // s (rear airborne whip over lip)
+    double post_climb_reset_duration = 0.50;  // s (unified plateau lift/reset)
+    double pull_through_vx           = 0.45;  // m/s (front wheel forward pull)
+    double max_vault_torque          = 20.0;  // Nm (safe de-rated torque <= 20.0 Nm)
+    double vault_traction_speed      = 1.00;  // m/s (cruising speed on plateau)
+    double wheel_impact_torque_thresh = 1.8;  // Nm
 
-    // Active pitch leveling during straddle
+    // Backward-compatible fields
+    double vault_duration = 0.16;
+    double front_straddle_duration = 0.25;
+    double forward_drive_speed = 0.35;    // m/s
+    double settling_distance = 0.25;      // m
+    double settling_duration = 1.50;      // s
+    double blend_out_duration = 0.30;     // s
+    double cooldown_duration = 0.50;      // s
     double leveling_kp_pitch = 2.0;
     double leveling_kd_pitch = 0.3;
-    double max_straddle_time_200mm = 8.0; // s
+    double max_straddle_time_200mm = 8.0;
+    double front_lift_duration = 0.40;
+    double front_lift_margin = 0.020;
+    double rear_proactive_prop_angle = -0.65;
+    double front_roll_speed = 2.5;
+    double rear_roll_speed = 2.5;
+    bool active_pitch_counter_balance = true;
 };
 
 class TaskController {
@@ -76,6 +116,22 @@ public:
                 double dt,
                 double body_vx = 0.0,
                 double cmd_vx = 0.20);
+
+    void updatePaperNormal(const estimation::ContactDetector& contact_detector,
+                           const estimation::ClimbGeometry& geometry,
+                           const Eigen::Vector4d& current_ecc_angles,
+                           const Eigen::Vector4d& current_ecc_efforts,
+                           double dt,
+                           double body_vx,
+                           double cmd_vx);
+
+    void updateStair200mm(const estimation::ContactDetector& contact_detector,
+                          const estimation::ClimbGeometry& geometry,
+                          const Eigen::Vector4d& current_ecc_angles,
+                          const Eigen::Vector4d& current_ecc_efforts,
+                          double dt,
+                          double body_vx,
+                          double cmd_vx);
 
     void update(const estimation::ContactDetector& contact_detector,
                 const Eigen::Vector4d& current_ecc_angles,
@@ -103,170 +159,68 @@ public:
     }
     ClimbMode getClimbMode() const { return params_.climb_mode; }
 
-    /**
-     * @brief Continuous analytical front target angle mapping (1.45 rad for 40mm up to 2.60 rad for 200mm).
-     * @param h_curb Curb height (m)
-     * @return Target eccentric angle for front legs (rad)
-     */
+    double computeFrontLiftAngle(double h_curb) const;
+    double computeFrontPlateauAngle(double h_curb) const;
     double computeFrontTargetAngle(double h_curb) const;
-
-    /**
-     * @brief Backward-compatible alias for computeFrontTargetAngle.
-     */
     double computeAdaptiveLiftAngle(double q_start = 0.0) const;
-
-    /**
-     * @brief Compute rear leg counter-balancing angle to keep chassis near-level with >20mm belly clearance.
-     * @param q_front_avg Average eccentric angle of the front legs resting on the curb
-     * @param h_curb Height of the curb (m)
-     * @return Target eccentric angle for rear legs (rad)
-     */
     double computeRearLevelingAngle(double q_front_avg, double h_curb) const;
-
-    /**
-     * @brief Compute rear leg climbing sweep target angle to ensure complete cresting over obstacle lip.
-     * @param h_curb Curb height (m)
-     * @return Target eccentric angle for rear legs during REAR_WALL_CLIMB (rad, in [-2.75, -2.95])
-     */
     double computeRearClimbTargetAngle(double h_curb) const;
 
-    /**
-     * @brief Reset lockout flag allowing immediate next climb without hard reboot.
-     */
     void clearClimbedLock() { has_climbed_ = false; }
-
-    /**
-     * @brief Check if the task controller is actively overriding any leg.
-     */
     bool isActive() const { return state_ != ClimbState::IDLE; }
-
-    /**
-     * @brief Check if the robot has successfully climbed onto the obstacle.
-     */
     bool hasClimbed() const { return has_climbed_; }
-
-    /**
-     * @brief Get the current FSM state.
-     */
     ClimbState getState() const { return state_; }
-
-    /**
-     * @brief Get human-readable name of the current state.
-     */
     std::string getStateName() const;
 
-    /**
-     * @brief Get the eccentric angle overrides for each leg.
-     *
-     * Only valid for legs where getOverrideMask()[i] is true.
-     * Other legs should continue using BalanceController output.
-     *
-     * @return Eigen::Vector4d  Override angles [FL, FR, RL, RR] (rad)
-     */
     Eigen::Vector4d getEccOverrides() const { return ecc_overrides_; }
-
-    /**
-     * @brief Get which legs are being overridden by the task controller.
-     * @return Array of 4 booleans. true = this leg is controlled by FSM.
-     */
     std::array<bool, NUM_LEGS> getOverrideMask() const { return override_mask_; }
-
-    /**
-     * @brief Get drive wheel speed overrides during wall climbing.
-     */
     Eigen::Vector4d getWheelSpeedOverrides() const { return wheel_speed_overrides_; }
-
-    /**
-     * @brief Get mask of wheels currently overridden.
-     */
     std::array<bool, NUM_LEGS> getWheelOverrideMask() const { return wheel_override_mask_; }
-
-    /**
-     * @brief Get the desired forward velocity command during climbing.
-     *
-     * During certain states (e.g., FRONT_PLACED), the FSM requests
-     * a specific forward velocity to advance the body.
-     *
-     * @return double  Desired vx (m/s), 0.0 when not applicable
-     */
     double getForwardVelocityOverride() const { return forward_vel_override_; }
-
-    /**
-     * @brief Get the blend-out weight for smooth FSM→IDLE transitions.
-     *
-     * Returns 1.0 when fully in FSM control, fading to 0.0 over blend_out_duration.
-     * mobed_control_node uses this to lerp FSM override angles toward IK angles,
-     * preventing the chassis from slamming down when climbing completes.
-     */
     double getBlendWeight() const { return blend_out_weight_; }
-
-    /**
-     * @brief Get contact validity flags for each leg based on FSM state.
-     * Airborne legs during FRONT_LIFT or REAR_LIFT report false.
-     * @return Array of 4 booleans [FL, FR, RL, RR]
-     */
     std::array<bool, NUM_LEGS> getContactValid() const;
 
-    /**
-     * @brief Force abort the climbing task and return to IDLE.
-     */
     void abort();
-
-    /**
-     * @brief Reset the task controller to IDLE state.
-     */
     void reset();
 
-    /**
-     * @brief Check if currently in dynamic snap-kick downforce state (80~110mm).
-     */
-    bool isSnapKickActive() const { return snap_kick_active_; }
-
-    /**
-     * @brief Check if currently in coordinated 4-wheel chassis lift state (200mm).
-     */
     bool isCoordinatedLiftActive() const { return coordinated_lift_active_; }
+    const std::array<SingleLegFSM, NUM_LEGS>& getLegFSMs() const { return leg_fsms_; }
 
 private:
     TaskControllerParams params_;
     ClimbState state_ = ClimbState::IDLE;
+
+    // Per-leg independent state machines
+    std::array<SingleLegFSM, NUM_LEGS> leg_fsms_;
 
     // Per-leg override commands and mask
     Eigen::Vector4d ecc_overrides_;
     std::array<bool, NUM_LEGS> override_mask_;
     Eigen::Vector4d wheel_speed_overrides_ = Eigen::Vector4d::Zero();
     std::array<bool, NUM_LEGS> wheel_override_mask_ = {false, false, false, false};
-    // Selective lift mask for decoupled single-wheel / dual-wheel climbing (Phase 3)
     std::array<bool, NUM_LEGS> active_lift_mask_ = {false, false, false, false};
     double forward_vel_override_ = 0.0;
 
     double current_front_target_ = 0.0;
 
     // Timing
-    double state_timer_ = 0.0;        // time spent in current state
-    double blend_out_timer_ = 0.0;    // timer counting the FSM→IDLE blend-out phase
-    double cooldown_timer_ = 0.0;     // refractory timer inhibiting re-triggers in IDLE
-    double travel_distance_ = 0.0;    // integrated travel distance during body advance in FRONT_PLACED
-    double stall_jam_timer_ = 0.0;     // watchdog timer accumulating true physical stall duration
+    double state_timer_ = 0.0;
+    double blend_out_timer_ = 0.0;
+    double cooldown_timer_ = 0.0;
+    double travel_distance_ = 0.0;
+    double stall_jam_timer_ = 0.0;
 
-    // Blend-out weight: 1.0 = full FSM override; 0.0 = fully handed back to balance controller.
     double blend_out_weight_ = 0.0;
     bool has_climbed_ = false;
-
-    // Active sub-mode flags
-    bool snap_kick_active_ = false;
     bool coordinated_lift_active_ = false;
-    double landing_rear_q_ = -4.65;
+    double landing_rear_q_ = 0.0;
 
-    // Stored start angles and target angles
     Eigen::Vector4d lift_start_angles_ = Eigen::Vector4d::Zero();
     Eigen::Vector2d front_target_angles_ = Eigen::Vector2d::Zero();
     Eigen::Vector2d rear_target_angles_ = Eigen::Vector2d::Zero();
 
-    /**
-     * @brief Transition to a new state, resetting the state timer.
-     */
     void transitionTo(ClimbState new_state);
+    void handleBlendOut(double dt);
 };
 
 }  // namespace tasks

@@ -74,14 +74,19 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
 
         // Wheels
         curr_wheel_velocities(i) = in.wheel_vel[i] * wheel_signs_[i];
-        curr_wheel_efforts(i)    = in.wheel_effort[i];
+        curr_wheel_efforts(i)    = in.wheel_effort[i] * wheel_signs_[i];
     }
+
+    ClimbMode new_climb_mode = static_cast<ClimbMode>(cmd.climb_mode);
 
     if (!joints_initialized_) {
         for (int i = 0; i < 4; ++i) {
             prev_cad_ecc_[i] = in.ecc_pos[i];
         }
         joints_initialized_ = true;
+        if (new_climb_mode == ClimbMode::STAIR_200MM) {
+            transition_smoother_.start(curr_ecc_angles, curr_wheel_velocities, 0.0, 1.0, 0.60);
+        }
     }
 
     // Unpack IMU
@@ -100,10 +105,17 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
 
     // Unpack user posture mode and autonomous climb mode
     user_posture_config_ = static_cast<PostureConfiguration>(cmd.posture_mode);
-    climb_mode_ = static_cast<ClimbMode>(cmd.climb_mode);
-    task_controller_->setClimbMode(climb_mode_);
-    if (climb_mode_ == ClimbMode::DISABLED && task_controller_->isActive()) {
-        task_controller_->reset();
+    if (new_climb_mode != climb_mode_) {
+        // Mode transition detected
+        if (climb_mode_ == ClimbMode::STAIR_200MM && new_climb_mode != ClimbMode::STAIR_200MM) {
+            // Operator manually ended 200mm stair mode
+            if (task_controller_->isActive()) {
+                task_controller_->abort();
+            }
+        }
+        climb_mode_ = new_climb_mode;
+        task_controller_->setClimbMode(climb_mode_);
+        transition_smoother_.start(curr_ecc_angles, curr_wheel_velocities, 0.0, 1.0, 0.60);
     }
 
     if (is_homing_) {
@@ -112,7 +124,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             state_estimator_->updateStaticCalibration(imu);
         }
         bool has_teleop_input = (cmd_vel.norm() > 0.05);
-        if (homing_timer_ > 0.5 || has_teleop_input) {
+        if (homing_timer_ > 0.5 || has_teleop_input || climb_mode_ == ClimbMode::STAIR_200MM) {
             is_homing_ = false;
         }
     }
@@ -158,10 +170,12 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
         contact_points_world[i] = base_pos + R_base * foot_pos_in_base[i];
     }
 
-    climb_geometry_estimator_->update(
-        body_state, contact_points_world, curr_ecc_angles,
-        curr_wheel_velocities, curr_wheel_efforts, prev_target_wheel_,
-        imu.angular_velocity, task_controller_->getCurbHeight(), dt);
+    if (climb_mode_ == ClimbMode::STAIR_200MM || task_controller_->isActive()) {
+        climb_geometry_estimator_->update(
+            body_state, contact_points_world, curr_ecc_angles,
+            curr_wheel_velocities, curr_wheel_efforts, prev_target_wheel_,
+            imu.angular_velocity, task_controller_->getCurbHeight(), dt);
+    }
 
     Eigen::Vector3d active_cmd_vel = is_homing_ ? Eigen::Vector3d::Zero() : cmd_vel;
     if (task_controller_->isActive()) {
@@ -182,51 +196,32 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     Eigen::Vector3d v_body = R_base.transpose() * body_state.linear_velocity;
     double chassis_forward_vel = v_body.x();
 
+    // Gravity-compensated body longitudinal dynamic acceleration
+    // If sensor provides specific force (norm > 5.0 m/s^2), removes gravity projection
+    double forward_accel_dyn = imu.linear_acceleration.x();
+    if (imu.linear_acceleration.norm() > 5.0) {
+        Eigen::Vector3d g_world(0.0, 0.0, -9.81);
+        Eigen::Vector3d g_body = R_base.transpose() * g_world;
+        forward_accel_dyn += g_body.x();
+    }
+
     contact_detector_->update(
         curr_ecc_efforts, curr_wheel_efforts, curr_wheel_velocities,
-        chassis_forward_vel, active_cmd_vel.x(), imu.linear_acceleration.x(),
+        chassis_forward_vel, active_cmd_vel.x(), forward_accel_dyn,
         climb_geometry_estimator_->getGeometry(), dt);
 
     // ================================================================
-    // Phase 4: Autonomous Obstacle Climbing State Machine (Climb FSM)
+    // Phase 4: Obstacle Climbing State Machine (Climb FSM)
     // ================================================================
     bool e_stop = (cmd.e_stop != 0);
     if (!is_homing_ && !e_stop) {
-        bool forward_intent = (cmd_vel(0) > 0.08);
-        bool steer_aligned = (std::abs(curr_steer_angles(0)) < 0.60) &&
-                             (std::abs(curr_steer_angles(1)) < 0.60);
-        bool forward_straight_active = forward_intent && steer_aligned &&
-                                       (std::abs(cmd_vel(2)) < 0.40) &&
-                                       (std::abs(cmd_vel(1)) < 0.15);
-
-        bool fl_stalled = (std::abs(curr_wheel_efforts(0)) > robot_params_.wheel_stall_torque_threshold) &&
-                          (std::abs(curr_wheel_velocities(0)) < robot_params_.wheel_stall_vel_threshold);
-        bool fr_stalled = (std::abs(curr_wheel_efforts(1)) > robot_params_.wheel_stall_torque_threshold) &&
-                          (std::abs(curr_wheel_velocities(1)) < robot_params_.wheel_stall_vel_threshold);
-        bool front_wheel_stalled = fl_stalled || fr_stalled;
-
-        bool steady_ramp = (terrain_state.pitch_slope > robot_params_.ramp_inhibit_slope_threshold) &&
-                           (std::abs(terrain_state.roll_slope) < 0.055);
-        bool wheels_rolling_forward = (curr_wheel_velocities(0) > 1.0) &&
-                                      (curr_wheel_velocities(1) > 1.0);
         const auto& geom = climb_geometry_estimator_->getGeometry();
-        bool transient_ramp = (cmd_vel(0) > 0.05) && wheels_rolling_forward &&
-                              (geom.nose_up_pitch > robot_params_.ramp_inhibit_pitch_threshold);
-
-        bool is_on_ramp = !front_wheel_stalled && (steady_ramp || transient_ramp) && (geom.delta_height < 0.035);
-
-        bool obstacle_climb_permitted = (climb_mode_ != ClimbMode::DISABLED) &&
-                                        (forward_straight_active || geom.delta_height > 0.035) &&
-                                        !is_on_ramp;
-
         if (!task_controller_->isActive() && cmd_vel(0) < -0.05) {
             contact_detector_->reset();
         }
 
-        if (obstacle_climb_permitted || task_controller_->isActive()) {
-            task_controller_->update(
-                *contact_detector_, geom, curr_ecc_angles, curr_ecc_efforts, dt, chassis_forward_vel, cmd_vel(0));
-        }
+        task_controller_->update(
+            *contact_detector_, geom, curr_ecc_angles, curr_ecc_efforts, dt, chassis_forward_vel, cmd_vel(0));
     }
 
     // ================================================================
@@ -277,7 +272,11 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     // ================================================================
     // Phase 6: Balance Controller (SRBD + QP + Bank Angle overlay)
     // ================================================================
-    double active_height = is_homing_ ? 0.205 : target_height;
+    double effective_target_height = target_height;
+    if (task_controller_->getClimbMode() == ClimbMode::STAIR_200MM && !task_controller_->hasClimbed()) {
+        effective_target_height = 0.220; // 物理最高极限，保证 210.5mm 离地间隙 (q=0.0 rad 直立姿态)
+    }
+    double active_height = is_homing_ ? 0.205 : effective_target_height;
     double active_roll   = is_homing_ ? 0.0 : target_roll;
     double active_pitch  = is_homing_ ? 0.0 : target_pitch;
 
@@ -307,6 +306,17 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
 
     Eigen::Vector4d target_ecc = balance_out.ecc_angles;
 
+    // Direct 200mm Stair Mode Maximum Height Stance:
+    // In STAIR_200MM mode before climb: eccentric arms stand strictly vertically downwards (q = 0.0 rad, 6 o'clock).
+    // In STAIR_200MM mode after climb: eccentric arms maintain 180-deg highest point stance (q = -pi rad, 12 o'clock).
+    if (climb_mode_ == ClimbMode::STAIR_200MM && !task_controller_->isActive()) {
+        if (!task_controller_->hasClimbed()) {
+            target_ecc.setZero();
+        } else {
+            target_ecc.setConstant(-M_PI);
+        }
+    }
+
     // ================================================================
     // Phase 7: FSM Override (Replace legs if climbing)
     // ================================================================
@@ -328,7 +338,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
         }
     }
 
-    if (transition_smoother_.in_transition) {
+    if (transition_smoother_.in_transition && !task_controller_->isActive()) {
         double alpha = transition_smoother_.getWeight();
         for (int i = 0; i < NUM_LEGS; ++i) {
             target_ecc(i) = (1.0 - alpha) * transition_smoother_.start_ecc_angles(i) + alpha * target_ecc(i);
@@ -341,28 +351,30 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     for (int i = 0; i < 4; ++i) {
         // Steering
         out.steer_pos[i] = target_steer(i) * steer_signs_[i];
-        out.steer_effort[i] = driving_controller_->getSteerTorques()(i) * steer_signs_[i];
+        out.steer_effort[i] = std::clamp(driving_controller_->getSteerTorques()(i) * steer_signs_[i], -10.0, 10.0);
 
-        // Eccentric (Shortest-arc unwrap)
+        bool leg_is_overridden = task_controller_->isActive() && ecc_override_mask[i];
+
+        // Eccentric: direct continuous tracking during climb, shortest-arc unwrapping during normal cruise
         double target_cad = target_ecc(i) * ecc_signs_[i] + ecc_offsets_[i];
-        double delta_cad = kinematics_->normalize_angle(target_cad - prev_cad_ecc_[i]);
-        double continuous_cad = prev_cad_ecc_[i] + delta_cad;
+        double continuous_cad = target_cad;
+        if (!leg_is_overridden) {
+            double delta_cad = kinematics_->normalize_angle(target_cad - prev_cad_ecc_[i]);
+            continuous_cad = prev_cad_ecc_[i] + delta_cad;
+        }
         prev_cad_ecc_[i] = continuous_cad;
         out.ecc_pos[i] = continuous_cad;
 
-        bool leg_is_overridden = task_controller_->isActive() && ecc_override_mask[i];
         double ff_weight = transition_smoother_.getFeedforwardWeight();
         double effort_cmd = leg_is_overridden
                           ? 0.0
                           : balance_out.ecc_torques(i) * ecc_signs_[i] * ff_weight;
 
-        // Snap-kick downforce (-35 Nm on RL/RR)
-        if (task_controller_->isActive() && task_controller_->isSnapKickActive()) {
-            if (i == RL || i == RR) {
-                effort_cmd = -35.0 * ecc_signs_[i];
-            }
+        if (climb_mode_ == ClimbMode::STAIR_200MM && !task_controller_->isActive()) {
+            effort_cmd = 0.0;
         }
-        effort_cmd = std::clamp(effort_cmd, -50.0, 50.0);
+
+        effort_cmd = std::clamp(effort_cmd, -12.0, 12.0);
         out.ecc_effort[i] = effort_cmd;
 
         // Wheels
@@ -373,37 +385,35 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
                 target_wheel_vel = task_controller_->getWheelSpeedOverrides()(i);
             }
         }
-        if (transition_smoother_.in_transition) {
+        if (transition_smoother_.in_transition && !task_controller_->isActive()) {
             double alpha = transition_smoother_.getWeight();
             target_wheel_vel = (1.0 - alpha) * transition_smoother_.start_wheel_vels(i) + alpha * target_wheel_vel;
         }
         out.wheel_vel[i] = target_wheel_vel * wheel_signs_[i];
 
-        // Traction torque injection
+        // Traction torque injection (strictly bounded within realistic ±3.0 Nm wheel limit)
         double wheel_effort = driving_controller_->getWheelTorques()(i) * wheel_signs_[i];
         if (task_controller_->isActive()) {
             auto state = task_controller_->getState();
-            if (state == tasks::ClimbState::FRONT_WALL_CLIMB || state == tasks::ClimbState::STRADDLE_LEVELING) {
-                if (i == FL || i == FR) wheel_effort += 4.0 * wheel_signs_[i];
-            } else if (state == tasks::ClimbState::REAR_WALL_CLIMB) {
-                if (i == FL || i == FR) wheel_effort += 7.0 * wheel_signs_[i];
+            if (state == tasks::ClimbState::FRONT_WALL_CLIMB || state == tasks::ClimbState::FRONT_VAULT_180) {
+                wheel_effort += 1.5 * wheel_signs_[i];
+            } else if (state == tasks::ClimbState::STRADDLE_LEVELING) {
+                if (i == FL || i == FR) wheel_effort += 2.0 * wheel_signs_[i];
+                else wheel_effort += 1.5 * wheel_signs_[i];
+            } else if (state == tasks::ClimbState::REAR_BELLY_REST) {
+                // Front wheels point-braked, zero extra forward effort
             } else if (state == tasks::ClimbState::REAR_VAULT_LOOP) {
-                if (i == FL || i == FR) wheel_effort += 8.5 * wheel_signs_[i];
+                if (i == FL || i == FR) wheel_effort += 2.0 * wheel_signs_[i];
+                else wheel_effort += 1.5 * wheel_signs_[i];
             } else if (state == tasks::ClimbState::REAR_CREEP_ADVANCE) {
-                wheel_effort += 3.5 * wheel_signs_[i];
-            } else if (state == tasks::ClimbState::REAR_CREST_FOLD) {
-                if (task_controller_->isSnapKickActive()) {
-                    if (i == FL || i == FR) wheel_effort += 7.0 * wheel_signs_[i];
-                    else if (i == RL || i == RR) wheel_effort += 6.0 * wheel_signs_[i];
-                } else if (task_controller_->isCoordinatedLiftActive()) {
-                    wheel_effort += 5.0 * wheel_signs_[i];
-                } else {
-                    if (i == FL || i == FR) wheel_effort += 7.0 * wheel_signs_[i];
-                }
-            } else if (state == tasks::ClimbState::REAR_POST_CLIMB_RESET) {
-                if (i == FL || i == FR) wheel_effort += 4.0 * wheel_signs_[i];
+                wheel_effort += 1.2 * wheel_signs_[i];
+            } else if (state == tasks::ClimbState::POST_CLIMB_RESET) {
+                wheel_effort += 1.5 * wheel_signs_[i];
+            } else if (state == tasks::ClimbState::CLIMBED_RUN) {
+                wheel_effort += 1.0 * wheel_signs_[i];
             }
         }
+        wheel_effort = std::clamp(wheel_effort, -3.0, 3.0);
         out.wheel_effort[i] = wheel_effort;
     }
 

@@ -90,8 +90,9 @@ void ClimbGeometryEstimator::update(
     geometry_.rear_hip_cleared = (geometry_.rear_hip_z >= effective_h + 0.015);
 
     // 4. CoM longitudinal support margin (distance from CoM to rear wheel contact boundary)
-    double rear_contact_x = 0.5 * (contact_points_world[RL].x() + contact_points_world[RR].x());
-    geometry_.com_support_margin = body_state.position.x() - rear_contact_x;
+    Eigen::Matrix3d R_b = body_state.orientation.toRotationMatrix();
+    Eigen::Vector3d rear_contact_body = R_b.transpose() * (0.5 * (contact_points_world[RL] + contact_points_world[RR]) - body_state.position);
+    geometry_.com_support_margin = -rear_contact_body.x();
 
     // 5. Front wall climbing detection:
     // When front wheels are climbing vertical face, nose pitches up sharply with positive wheel height delta
@@ -108,8 +109,8 @@ void ClimbGeometryEstimator::update(
     bool fl_spinning = std::abs(current_wheel_vels(FL)) > 0.3 * std::max(0.5, std::abs(target_wheel_vels(FL)));
     bool fr_spinning = std::abs(current_wheel_vels(FR)) > 0.3 * std::max(0.5, std::abs(target_wheel_vels(FR)));
     bool front_wheels_active = fl_spinning || fr_spinning || (std::abs(current_wheel_vels(FL)) > 0.8);
-
-    bool climb_height_valid = (geometry_.delta_height > 0.035);
+    double front_crest_thresh = std::clamp(effective_h * 0.70, 0.035, 0.16);
+    bool climb_height_valid = (geometry_.delta_height >= front_crest_thresh);
     bool climb_velocity_plateau = (std::abs(front_z_vel_) < 0.030);
     bool pitch_rate_leveling = (geometry_.nose_up_pitch_rate <= 0.04);
 
@@ -150,7 +151,9 @@ void ClimbGeometryEstimator::update(
     }
 
     // 8. Plateau Path Odometry & Rear Drive Wheel Slip Ratio
-    double chassis_vx = std::max(0.0, body_state.linear_velocity.x());
+    Eigen::Matrix3d R_base = body_state.orientation.toRotationMatrix();
+    Eigen::Vector3d v_body = R_base.transpose() * body_state.linear_velocity;
+    double chassis_vx = std::max(0.0, v_body.x());
     if (geometry_.front_edge_crested) {
         travel_distance_ += chassis_vx * dt;
     } else {

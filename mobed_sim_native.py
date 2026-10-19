@@ -14,7 +14,7 @@ Key Advantages:
 - Real-time mouse orbit (left drag), pan (right drag), and zoom (scroll).
 
 Usage:
-    ./.venv/bin/python3 mobed_sim_native.py [--arena rmuc|playground|flat] [--climb auto|on|off]
+    ./.venv/bin/python3 mobed_sim_native.py [--arena rmuc|playground|flat] [--climb on|off]
 """
 
 import os
@@ -93,16 +93,12 @@ JOINT_NAMES = [
 
 FSM_STATE_NAMES = [
     "IDLE",
-    "FRONT_WALL_CLIMB",
+    "FRONT_VAULT_180",
     "STRADDLE_LEVELING",
-    "STRADDLE_HOLD",
-    "REAR_WALL_CLIMB",
+    "REAR_BELLY_REST",
     "REAR_VAULT_LOOP",
-    "REAR_TOUCHDOWN_SETTLE",
-    "REAR_CREEP_ADVANCE",
-    "REAR_CREST_FOLD",
-    "REAR_POST_CLIMB_RESET",
-    "REAR_PLACED"
+    "POST_CLIMB_RESET",
+    "CLIMBED_RUN",
 ]
 
 
@@ -204,12 +200,12 @@ def get_hardware_keyboard_state(window) -> dict:
 # -----------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description='MobED 120 FPS Direct GLFW MuJoCo Simulator')
-    parser.add_argument('--arena', type=str, default='rmuc', choices=['rmuc', 'playground', 'flat'],
-                        help='Arena scene: rmuc (default), playground, flat')
+    parser.add_argument('--arena', type=str, default='playground', choices=['playground', 'rmuc', 'flat'],
+                        help='Arena scene: playground (default for curb/slope obstacle testing), rmuc, flat')
     parser.add_argument('--keyframe', type=str, default='home',
-                        help='Spawn location keyframe (home, home_red, home_blue, test_bumps, test_slope_23, test_bunker, test_flyslope)')
-    parser.add_argument('--climb', type=str, default='auto', choices=['auto', 'on', 'off'],
-                        help='Obstacle climb FSM mode: auto (default: on for playground, off for rmuc/flat), on, off')
+                        help='Spawn location keyframe (home [default: 10cm curb], curb_5cm, curb_20cm, plaza, test_bumps, test_slope_23, test_bunker, test_flyslope)')
+    parser.add_argument('--climb', type=str, default='normal', choices=['normal', 'stair', 'on', 'off'],
+                        help='Climb mode: normal (Mode 1: Paper standard, default), stair (Mode 2: 200mm stair), off')
     parser.add_argument('--model', type=str, default=None, help='Custom MJCF model path')
     args = parser.parse_args()
 
@@ -218,20 +214,22 @@ def main():
         xml_path = args.model
     elif args.arena == 'flat':
         xml_path = FLAT_XML
-    elif args.arena == 'playground':
+    elif args.arena == 'rmuc' and os.path.exists(RMUC_XML):
+        xml_path = RMUC_XML
+    elif os.path.exists(PLAYGROUND_XML):
         xml_path = PLAYGROUND_XML
     elif os.path.exists(RMUC_XML):
         xml_path = RMUC_XML
     else:
         xml_path = FLAT_XML
 
-    # Climb FSM mode: disabled for flat & rmuc to guarantee high-speed cruise stability
-    if args.climb == 'on':
-        climb_mode_val = 1
-    elif args.climb == 'off':
+    # Climb FSM mode: default PAPER_NORMAL (1), STAIR_200MM (2), or DISABLED (0)
+    if args.climb == 'off':
         climb_mode_val = 0
+    elif args.climb == 'stair':
+        climb_mode_val = 2
     else:
-        climb_mode_val = 1 if args.arena == 'playground' else 0
+        climb_mode_val = 1
 
     print(f'==> Loading MuJoCo Model: {xml_path}')
     model = mujoco.MjModel.from_xml_path(xml_path)
@@ -332,7 +330,7 @@ def main():
     g_world = np.array([0.0, 0.0, -9.81])
     prev_lin_vel = np.array(data.qvel[0:3], dtype=np.float64)
 
-    climb_str = "ENABLED (Auto)" if climb_mode_val == 1 else "DISABLED (Flat Ground Cruise Lockout)"
+    mode_str = "Mode 1: PAPER_NORMAL (Paper Standard)" if climb_mode_val == 1 else ("Mode 2: STAIR_200MM (Dedicated Stair)" if climb_mode_val == 2 else "Mode 0: DISABLED")
 
     print("\n" + "="*70)
     print("  MobED Direct GLFW Native Simulation Ready (100% Conflict-Free)")
@@ -343,9 +341,18 @@ def main():
     print("    [A / D]       Pure Lateral Strafe (when stopped, 391mm Wide Stance)")
     print("    [Q / E]       In-place Spin CCW / CW (1.8 rad/s)")
     print("    [Space / X]   Brake / Soft Stop (Release keys to coast to stop)")
+    print("    [C]           Toggle Mode (Mode 1: Paper Normal <-> Mode 2: Stair 200mm)")
+    print("    [1 / 2 / 0]   Direct Mode Select: [1] Paper Normal | [2] Stair 200mm | [0] Disabled")
     print("    Mouse Drag    Left: Rotate around car | Right: Pan | Scroll: Zoom")
-    print(f"  Climb FSM : {climb_str}")
+    print(f"  Active Mode : {mode_str}")
     print("="*70 + "\n")
+
+    # Mode tracking variables
+    current_climb_mode = climb_mode_val
+    prev_key_c = False
+    prev_key_1 = False
+    prev_key_2 = False
+    prev_key_0 = False
 
     # Timing variables
     last_sim_time = time.perf_counter()
@@ -415,6 +422,28 @@ def main():
                     c_in.vy = float(cmd_vel[1])
                     c_in.wz = float(cmd_vel[2])
 
+                    # Mode toggle keys (edge detection)
+                    key_c = (glfw.get_key(window, glfw.KEY_C) == glfw.PRESS)
+                    key_1 = (glfw.get_key(window, glfw.KEY_1) == glfw.PRESS)
+                    key_2 = (glfw.get_key(window, glfw.KEY_2) == glfw.PRESS)
+                    key_0 = (glfw.get_key(window, glfw.KEY_0) == glfw.PRESS)
+
+                    if key_c and not prev_key_c:
+                        current_climb_mode = 1 if current_climb_mode == 2 else 2
+                    elif key_1 and not prev_key_1:
+                        current_climb_mode = 1
+                    elif key_2 and not prev_key_2:
+                        current_climb_mode = 2
+                    elif key_0 and not prev_key_0:
+                        current_climb_mode = 0
+
+                    prev_key_c = key_c
+                    prev_key_1 = key_1
+                    prev_key_2 = key_2
+                    prev_key_0 = key_0
+
+                    c_in.climb_mode = current_climb_mode
+
                     # 4. Invoke native C++ control core
                     lib.mobed_update(controller, ctypes.byref(s_in), ctypes.byref(c_in), CONTROL_DT, ctypes.byref(out))
 
@@ -447,9 +476,10 @@ def main():
                 fsm_str = FSM_STATE_NAMES[fsm_idx] if 0 <= fsm_idx < len(FSM_STATE_NAMES) else f"STATE_{fsm_idx}"
                 is_strafing = (abs(c_in.vy) > 0.05 and abs(c_in.vx) < 0.1)
                 mode_tag = "STRAFE(391mm)" if is_strafing else "ROAD(Turn+Bank)"
+                active_mode_label = "PAPER_NORMAL" if current_climb_mode == 1 else ("STAIR_200MM" if current_climb_mode == 2 else "DISABLED")
 
                 sys.stdout.write(
-                    f"\r\033[K[MobED] {mode_tag} | Vx={c_in.vx:+.2f} m/s | Vy={c_in.vy:+.2f} m/s | Wz={c_in.wz:+.2f} rad/s | Bank={np.degrees(out.bank_angle):+.1f}° | FSM={fsm_str}"
+                    f"\r\033[K[MobED] {mode_tag} | Mode=[{active_mode_label}] | Vx={c_in.vx:+.2f} m/s | Vy={c_in.vy:+.2f} m/s | Wz={c_in.wz:+.2f} rad/s | Bank={np.degrees(out.bank_angle):+.1f}° | FSM={fsm_str}"
                 )
                 sys.stdout.flush()
 

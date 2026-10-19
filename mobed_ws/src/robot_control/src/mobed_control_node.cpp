@@ -169,35 +169,29 @@ public:
                 }
             });
 
-        // Climb Mode Subscription: 0 = DISABLED, 1 = ADAPTIVE
+        // Climb Mode Subscription: 0 = DISABLED, 1 = PAPER_NORMAL, 2 = STAIR_200MM
         sub_climb_mode_ = this->create_subscription<std_msgs::msg::Int32>(
             "/mobed/climb_mode", 10,
             [this](const std_msgs::msg::Int32::SharedPtr msg) {
-                if (msg->data == 0 || msg->data == 1) {
+                if (msg->data >= 0 && msg->data <= 2) {
                     auto new_mode = static_cast<ClimbMode>(msg->data);
                     if (new_mode != climb_mode_) {
-                        const char* mode_name = (new_mode == ClimbMode::DISABLED) ? "DISABLED" : "ADAPTIVE";
+                        const char* mode_name = (new_mode == ClimbMode::DISABLED) ? "DISABLED" :
+                                                (new_mode == ClimbMode::PAPER_NORMAL ? "PAPER_NORMAL" : "STAIR_200MM");
                         RCLCPP_INFO(this->get_logger(), "Climb mode changed to: %s (%d)", mode_name, msg->data);
+                        if (climb_mode_ == ClimbMode::STAIR_200MM && new_mode != ClimbMode::STAIR_200MM) {
+                            if (task_controller_->isActive()) {
+                                task_controller_->abort();
+                            }
+                        }
                         climb_mode_ = new_mode;
-                        contact_detector_->reset();
-                        task_controller_->reset();
                         task_controller_->setClimbMode(climb_mode_);
-                        state_estimator_->reset();
-                        terrain_estimator_->reset();
-                        balance_controller_->syncCurrentAngles(curr_ecc_angles_);
-                        target_height_ = 0.205;
-                        transition_smoother_.start(curr_ecc_angles_, curr_wheel_velocities_, 1.0, 1.0, 0.25);
+                        if (climb_mode_ == ClimbMode::STAIR_200MM) {
+                            task_controller_->setCurbHeight(0.20);
+                        }
                     }
-                } else if (msg->data == 2) {
-                    // Backward-compatibility: map legacy mode 2 directly to ADAPTIVE with 200mm target height
-                    if (climb_mode_ != ClimbMode::ADAPTIVE) {
-                        RCLCPP_INFO(this->get_logger(), "Climb mode set to: ADAPTIVE (via legacy mode 2 request)");
-                        climb_mode_ = ClimbMode::ADAPTIVE;
-                        task_controller_->setClimbMode(climb_mode_);
-                    }
-                    task_controller_->setCurbHeight(0.20);
                 } else {
-                    RCLCPP_WARN(this->get_logger(), "Invalid climb mode: %d (0:DISABLED, 1:ADAPTIVE)", msg->data);
+                    RCLCPP_WARN(this->get_logger(), "Invalid climb mode: %d (0:DISABLED, 1:PAPER_NORMAL, 2:STAIR_200MM)", msg->data);
                 }
             });
 
@@ -468,12 +462,14 @@ private:
         }
 
         // Update climb geometry estimator (step height, standardized pitch, support margins)
-        climb_geometry_estimator_->update(
-            body_state, contact_points_world,
-            curr_ecc_angles_,
-            curr_wheel_velocities_, curr_wheel_efforts_,
-            prev_target_wheel_, omega_body,
-            task_controller_->getCurbHeight(), dt);
+        if (climb_mode_ == ClimbMode::STAIR_200MM || task_controller_->isActive()) {
+            climb_geometry_estimator_->update(
+                body_state, contact_points_world,
+                curr_ecc_angles_,
+                curr_wheel_velocities_, curr_wheel_efforts_,
+                prev_target_wheel_, omega_body,
+                task_controller_->getCurbHeight(), dt);
+        }
 
         Eigen::Vector3d active_cmd_vel = is_homing_ ? Eigen::Vector3d::Zero() : cmd_vel_;
         if (task_controller_->isActive()) {
@@ -505,46 +501,15 @@ private:
         // Phase 4: FSM Task Controller (climbing state machine)
         // ============================================================
         if (!is_homing_ && !e_stop_active_) {
-            // Forward Motion & Steering Inhibit Gate (Layer 2 Defense):
-            // Require intentional forward approach (vx > 0.08) with steering aligned forward (|steer| < 0.60 rad ≈ 35°)
-            // Completely inhibits obstacle climb during lateral strafe or in-place spinning.
-            bool forward_intent = (cmd_vel_(0) > 0.08);
-            bool steer_aligned = (std::abs(curr_steer_angles_(0)) < 0.60) &&
-                                 (std::abs(curr_steer_angles_(1)) < 0.60);
-            bool forward_straight_active = forward_intent && steer_aligned &&
-                                           (std::abs(cmd_vel_(2)) < 0.40) &&
-                                           (std::abs(cmd_vel_(1)) < 0.15);
-
-            bool fl_stalled = (std::abs(curr_wheel_efforts_(0)) > robot_params_.wheel_stall_torque_threshold) &&
-                              (std::abs(curr_wheel_velocities_(0)) < robot_params_.wheel_stall_vel_threshold);
-            bool fr_stalled = (std::abs(curr_wheel_efforts_(1)) > robot_params_.wheel_stall_torque_threshold) &&
-                              (std::abs(curr_wheel_velocities_(1)) < robot_params_.wheel_stall_vel_threshold);
-            bool front_wheel_stalled = fl_stalled || fr_stalled;
-
-            bool steady_ramp = (terrain_state.pitch_slope > robot_params_.ramp_inhibit_slope_threshold) &&
-                               (std::abs(terrain_state.roll_slope) < 0.055);
-
-            bool wheels_rolling_forward = (curr_wheel_velocities_(0) > 1.0) &&
-                                          (curr_wheel_velocities_(1) > 1.0);
             const auto& geom = climb_geometry_estimator_->getGeometry();
-            bool transient_ramp = (cmd_vel_(0) > 0.05) && wheels_rolling_forward &&
-                                  (geom.nose_up_pitch > robot_params_.ramp_inhibit_pitch_threshold);
-
-            bool is_on_ramp = !front_wheel_stalled && (steady_ramp || transient_ramp) && (geom.delta_height < 0.035);
-
-            bool obstacle_climb_permitted = (climb_mode_ != ClimbMode::DISABLED) &&
-                                            (forward_straight_active || geom.delta_height > 0.035) &&
-                                            !is_on_ramp;
 
             // Only reset contact detector when explicitly reversing or driving backwards
             if (!task_controller_->isActive() && cmd_vel_(0) < -0.05) {
                 contact_detector_->reset();
             }
 
-            if (obstacle_climb_permitted || task_controller_->isActive()) {
-                task_controller_->update(
-                    *contact_detector_, geom, curr_ecc_angles_, curr_ecc_efforts_, dt, chassis_forward_vel, cmd_vel_(0));
-            }
+            task_controller_->update(
+                *contact_detector_, geom, curr_ecc_angles_, curr_ecc_efforts_, dt, chassis_forward_vel, cmd_vel_(0));
         }
 
         // Log FSM state transitions with override mask info
@@ -725,7 +690,7 @@ private:
             cmd_msg.name.push_back(steer_names[i]);
             cmd_msg.position.push_back(target_steer(i) * steer_signs_[i]);
             cmd_msg.velocity.push_back(0.0);
-            double steer_effort = driving_controller_->getSteerTorques()(i) * steer_signs_[i];
+            double steer_effort = std::clamp(driving_controller_->getSteerTorques()(i) * steer_signs_[i], -10.0, 10.0);
             cmd_msg.effort.push_back(steer_effort);
 
             // Eccentric: math → CAD
@@ -752,15 +717,7 @@ private:
                               ? 0.0
                               : balance_out.ecc_torques(i) * ecc_signs_[i] * ff_weight;
 
-            // Snap-kick downforce injection:
-            // When in REAR_CREST_FOLD with snap_kick_active (80~110mm), inject -35.0 Nm downward step torque on RL and RR!
-            if (task_controller_->isActive() && task_controller_->isSnapKickActive()) {
-                if (i == RL || i == RR) {
-                    effort_cmd = -35.0 * ecc_signs_[i];
-                }
-            }
-
-            effort_cmd = std::clamp(effort_cmd, -50.0, 50.0);
+            effort_cmd = std::clamp(effort_cmd, -12.0, 12.0);
             cmd_msg.effort.push_back(effort_cmd);
 
             // Wheels: math → CAD
@@ -780,51 +737,40 @@ private:
             }
             cmd_msg.velocity.push_back(target_wheel_vel * wheel_signs_[i]);
             double wheel_effort = driving_controller_->getWheelTorques()(i) * wheel_signs_[i];
-            // Traction torque injection during climbing phases:
-            // FRONT_WALL_CLIMB: Front wheels (FL, FR) inject +4.0 Nm to bite vertical wall face
-            // STRADDLE_LEVELING: Front wheels (FL, FR) pull with +4.0 Nm to advance chassis
-            // REAR_WALL_CLIMB & REAR_VAULT_LOOP & REAR_CREST_FOLD: Front wheels pull with +7.0 Nm
+            // Traction torque injection during climbing phases (strictly bounded within realistic ±3.0 Nm limit):
             if (task_controller_->isActive()) {
                 auto state = task_controller_->getState();
                 if (state == tasks::ClimbState::FRONT_WALL_CLIMB || state == tasks::ClimbState::STRADDLE_LEVELING) {
                     if (i == FL || i == FR) {
-                        wheel_effort += 4.0 * wheel_signs_[i];
+                        wheel_effort += 1.5 * wheel_signs_[i];
                     }
                 } else if (state == tasks::ClimbState::REAR_WALL_CLIMB) {
                     if (i == FL || i == FR) {
-                        wheel_effort += 7.0 * wheel_signs_[i];
+                        wheel_effort += 2.0 * wheel_signs_[i];
                     }
                 } else if (state == tasks::ClimbState::REAR_VAULT_LOOP) {
                     if (i == FL || i == FR) {
-                        wheel_effort += 8.5 * wheel_signs_[i];
+                        wheel_effort += 2.0 * wheel_signs_[i];
                     }
                 } else if (state == tasks::ClimbState::REAR_TOUCHDOWN_SETTLE) {
                     // Stance freeze buffer: zero extra wheel effort injection
                 } else if (state == tasks::ClimbState::REAR_CREEP_ADVANCE) {
-                    // Gentle creep crawl away from curb edge: +3.5 Nm on all 4 wheels
-                    wheel_effort += 3.5 * wheel_signs_[i];
+                    wheel_effort += 1.5 * wheel_signs_[i];
                 } else if (state == tasks::ClimbState::REAR_CREST_FOLD) {
-                    if (task_controller_->isSnapKickActive()) {
-                        if (i == FL || i == FR) {
-                            wheel_effort += 7.0 * wheel_signs_[i];
-                        } else if (i == RL || i == RR) {
-                            wheel_effort += 6.0 * wheel_signs_[i];
-                        }
-                    } else if (task_controller_->isCoordinatedLiftActive()) {
-                        // Coordinated lift: +5.0 Nm on all 4 wheels
-                        wheel_effort += 5.0 * wheel_signs_[i];
+                    if (task_controller_->isCoordinatedLiftActive()) {
+                        wheel_effort += 1.5 * wheel_signs_[i];
                     } else {
                         if (i == FL || i == FR) {
-                            wheel_effort += 7.0 * wheel_signs_[i];
+                            wheel_effort += 2.0 * wheel_signs_[i];
                         }
                     }
                 } else if (state == tasks::ClimbState::REAR_POST_CLIMB_RESET) {
-                    // Ground rolling reset: front wheels pull with +4.0 Nm to guide chassis
                     if (i == FL || i == FR) {
-                        wheel_effort += 4.0 * wheel_signs_[i];
+                        wheel_effort += 1.5 * wheel_signs_[i];
                     }
                 }
             }
+            wheel_effort = std::clamp(wheel_effort, -3.0, 3.0);
             cmd_msg.effort.push_back(wheel_effort);
         }
 
@@ -844,7 +790,7 @@ private:
     std::unique_ptr<estimation::ClimbGeometryEstimator> climb_geometry_estimator_;
 
     RobotParams robot_params_;
-    ClimbMode climb_mode_ = ClimbMode::ADAPTIVE;
+    ClimbMode climb_mode_ = ClimbMode::PAPER_NORMAL;
 
     // Zero-Jerk Mode Transition Smoother (0.2s Cosine S-curve)
     struct TransitionSmoother {

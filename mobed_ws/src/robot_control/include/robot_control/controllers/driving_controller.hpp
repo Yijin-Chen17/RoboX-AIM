@@ -35,8 +35,8 @@ struct DrivingControllerParams {
     double kd_steer = 30.0;         // Nm·s/rad (steering PD derivative gain)
     double kp_wheel = 15.0;         // Nm/(rad/s) (wheel speed PI proportional gain)
     double ki_wheel = 0.5;          // Nm/rad (wheel speed PI integral gain)
-    double max_steer_torque = 35.0; // Nm (steering actuator saturation limit)
-    double max_wheel_torque = 25.0; // Nm (driving wheel traction saturation limit)
+    double max_steer_torque = 10.0; // Nm (steering actuator saturation limit)
+    double max_wheel_torque = 3.0;  // Nm (driving wheel traction saturation limit)
 
     // ---- Velocity & Speed Saturation Limits ----
     double max_linear_vel  = 1.2;   // m/s (maximum chassis planar translation speed)

@@ -28,11 +28,13 @@ enum class PostureConfiguration : int {
 };
 
 // ============================================================================
-// Climb Strategy Mode Convention (Unified Adaptive Architecture 40mm ~ 200mm)
+// Climb Strategy Mode Convention
 // ============================================================================
 enum class ClimbMode : int {
-    DISABLED     = 0,  // Flat cruising mode: climbing trigger inhibited
-    ADAPTIVE     = 1   // Unified continuous 40mm~200mm near-level compliant FSM
+    DISABLED     = 0,  // 平地/调平巡航模式：台阶状态机完全锁止
+    PAPER_NORMAL = 1,  // 模式一：论文原版正常模式 (IEEE RA-L 2026 论文标准，自适应调平与常规越障)
+    ADAPTIVE     = 1,  // 兼容别名 (模式一)
+    STAIR_200MM  = 2   // 模式二：200mm 特殊台阶越障模式 (手动开启/手动结束)
 };
 
 // ============================================================================
