@@ -178,26 +178,37 @@ void ContactDetector::update(
     bool imu_impact_shock = (imu_accel_x < imu_decel_shock_threshold_);
 
     // 3. Wheel blocked slip against vertical obstacle face:
-    // When front tires hit a 200mm vertical wall face, chassis is halted (vx < 0.08) while wheels
-    // push with high drive effort (>= 2.0 Nm), even if rubber slips at 1.0 ~ 3.5 rad/s!
-    bool fl_slipping_blocked = chassis_halted && (std::abs(wheel_efforts(FL)) >= 2.0);
-    bool fr_slipping_blocked = chassis_halted && (std::abs(wheel_efforts(FR)) >= 2.0);
-    bool front_blocked_slip = (fl_slipping_blocked && fr_slipping_blocked) ||
-                              (fl_slipping_blocked || fr_slipping_blocked);
+    // When front tires hit a 200mm vertical wall face, both front wheels push with high drive effort (>= 2.2 Nm)
+    bool both_front_high_effort = (std::abs(wheel_efforts(FL)) >= 2.2) && (std::abs(wheel_efforts(FR)) >= 2.2);
+    // High drive effort by itself is normal during acceleration and cannot
+    // identify a wall.  Require an independent arrest/resistance signature
+    // as well; the existing torque thresholds remain unchanged.
+    bool momentum_arrested = (momentum_residual_ < -8.0);
+    bool front_arrested = chassis_halted || imu_impact_shock || momentum_arrested;
+    bool fl_slipping_blocked = front_arrested && (std::abs(wheel_efforts(FL)) >= 2.0);
+    bool fr_slipping_blocked = front_arrested && (std::abs(wheel_efforts(FR)) >= 2.0);
+    bool front_blocked_slip = fl_slipping_blocked && fr_slipping_blocked;
 
     // 4. Front eccentric arm reaction torque spike & momentum observer arrest
     bool front_ecc_spike = (std::abs(delta_tau_ecc_(FL)) > 1.8 || std::abs(delta_tau_ecc_(FR)) > 1.8) ||
                            (std::abs(ecc_torque_rates_(FL)) > 15.0 || std::abs(ecc_torque_rates_(FR)) > 15.0);
-    bool momentum_arrested = (momentum_residual_ < -8.0);
-
+    
     // 5. Multi-modal obstacle evidence calculation
     bool front_direct_impact = forward_cmd_active &&
                                (std::abs(wheel_efforts(FL)) >= 2.5 && std::abs(wheel_efforts(FR)) >= 2.5) &&
                                (imu_accel_x < -3.0 || (chassis_halted && (std::abs(delta_tau_ecc_(FL)) > 2.0 || std::abs(delta_tau_ecc_(FR)) > 2.0)));
 
+    // A normal bump can produce a positive nose-up signal.  Treat the
+    // geometric wall-climbing flag as impact evidence only when the body is
+    // also measurably arrested; this prevents ordinary terrain motion from
+    // entering the climb FSM.
+    bool geometric_wall_impact = geometry.front_wall_climbing &&
+                                 (chassis_halted || imu_impact_shock || momentum_arrested ||
+                                  chassis_forward_vel < 0.5 * std::max(0.08, cmd_forward_vel));
+
     double evidence_in = 0.0;
     if (forward_cmd_active) {
-        if (geometry.front_wall_climbing || front_direct_impact) {
+        if (geometric_wall_impact || front_direct_impact || front_blocked_slip) {
             evidence_in = 1.0;
             front_evidence_score_ = 1.0;
             impact_confirm_cycles_ = std::max(impact_confirm_cycles_, 2);
@@ -222,7 +233,9 @@ void ContactDetector::update(
     // 7. Confirmed front impact when evidence score sustains threshold (ultra-fast 6ms debounce)
     if (front_evidence_score_ >= 0.70 && impact_confirm_cycles_ >= 2) {
         front_evidence_sustain_timer_ += dt;
-        if (front_evidence_sustain_timer_ >= 0.006) {
+        // Reject short normal-driving torque transients.  This changes only
+        // the temporal confirmation, not any motor-torque threshold.
+        if (front_evidence_sustain_timer_ >= 0.050) {
             impact_flags_[FL] = true;
             impact_flags_[FR] = true;
         }
@@ -232,16 +245,22 @@ void ContactDetector::update(
 
     // 6. Rear wall contact confirmation (Dual-Track Arrival Observer: Continuous high-speed + Low-speed/Static bump)
     // Strictly requires front wheels to already be elevated on curb top and robot to have advanced across curb
-    bool front_on_plateau = (geometry.delta_height > 0.030) || geometry.front_edge_crested;
-    if (forward_cmd_active && front_on_plateau && geometry.travel_distance >= 0.22) {
+    // Do not gate rear impact on geometry.travel_distance: that odometry was
+    // previously accumulated only after front_edge_crested, creating a
+    // circular dependency that could make rear detection impossible.
+    bool front_on_plateau = geometry.front_platform_contact ||
+                            geometry.front_edge_crested ||
+                            (geometry.delta_height > 0.030);
+    if (forward_cmd_active && front_on_plateau) {
         double tau_rear_max = std::max(std::abs(wheel_efforts(RL)), std::abs(wheel_efforts(RR)));
         bool rear_wheel_resisting = (tau_rear_max > 2.0);
 
         bool rear_reaction_spike = (std::abs(delta_tau_ecc_(RL)) > 1.8 || std::abs(delta_tau_ecc_(RR)) > 1.8) ||
                                    (std::abs(ecc_torque_rates_(RL)) > 12.0 || std::abs(ecc_torque_rates_(RR)) > 12.0);
 
-        bool continuous_arrival = (geometry.travel_distance >= 0.22) &&
-                                  (geometry.rear_slip_ratio > 0.65 || rear_wheel_resisting || chassis_halted);
+        bool continuous_arrival = geometry.rear_platform_contact ||
+                                  (geometry.rear_slip_ratio > 0.65 && rear_wheel_resisting) ||
+                                  (chassis_halted && rear_wheel_resisting);
 
         bool momentum_arrested = (momentum_residual_ < -10.0) || (chassis_forward_vel < 0.06);
         bool rear_stalled = (std::abs(wheel_velocities(RL)) < params_.wheel_stall_vel_threshold ||

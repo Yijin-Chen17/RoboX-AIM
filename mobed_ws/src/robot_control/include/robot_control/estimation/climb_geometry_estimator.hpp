@@ -33,6 +33,11 @@ struct ClimbGeometry {
     double belly_clearance_margin = 0.0; // Estimated clearance between chassis bottom and curb edge (m)
     double front_z_vel = 0.0;            // Rate of change of front contact height in world frame (m/s)
     double max_climbed_z = 0.0;          // Peak climbed front wheel height during climb (m)
+    std::array<double, NUM_LEGS> contact_confidence = {0.0, 0.0, 0.0, 0.0};
+    double front_contact_confidence = 0.0;
+    double rear_contact_confidence = 0.0;
+    bool front_platform_contact = false;
+    bool rear_platform_contact = false;
 };
 
 /**
@@ -48,6 +53,7 @@ public:
     void update(const BodyState& body_state,
                 const std::array<Eigen::Vector3d, NUM_LEGS>& contact_points_world,
                 const Eigen::Vector4d& current_ecc_angles,
+                const Eigen::Vector4d& current_ecc_efforts,
                 const Eigen::Vector4d& current_wheel_vels,
                 const Eigen::Vector4d& current_wheel_efforts,
                 const Eigen::Vector4d& target_wheel_vels,
@@ -62,6 +68,7 @@ public:
                 const Eigen::Vector4d& target_wheel_vels,
                 double dt) {
         update(body_state, contact_points_world, Eigen::Vector4d::Zero(),
+               Eigen::Vector4d::Zero(),
                current_wheel_vels, current_wheel_efforts, target_wheel_vels,
                Eigen::Vector3d::Zero(), 0.10, dt);
     }
@@ -91,6 +98,7 @@ private:
     double front_z_vel_ = 0.0;
     double max_climbed_z_ = 0.0;
     double crest_confirm_timer_ = 0.0;
+    std::array<double, NUM_LEGS> contact_confidence_ = {0.0, 0.0, 0.0, 0.0};
 };
 
 }  // namespace estimation

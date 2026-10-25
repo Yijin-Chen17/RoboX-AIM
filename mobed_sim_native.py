@@ -80,10 +80,12 @@ class ActuatorOutputs(ctypes.Structure):
 # -----------------------------------------------------------------------------
 # Arena & Joint Constants
 # -----------------------------------------------------------------------------
-PLAYGROUND_XML = 'models/robot_playground.xml'
-FLAT_XML       = 'models/robot.xml'
-RMUC_XML       = 'models/rmuc2026/robot_rmuc2026.xml'
-DYLIB_PATH     = 'build_native/libmobed_control.dylib'
+PLAYGROUND_XML    = 'models_standard/playground/robot_playground.xml'
+RMUC2027_LITE_XML = 'models_standard/rmuc2027/robot_rmuc2027_lite.xml'
+RMUC2027_HD_XML   = 'models_standard/rmuc2027/robot_rmuc2027.xml'
+ROBOX_V2_XML      = 'models_standard/robox_v2/robox_v2.xml'
+FLAT_XML          = ROBOX_V2_XML
+DYLIB_PATH        = 'build_native/libmobed_control.dylib'
 
 JOINT_NAMES = [
     'Steering_joint_LF', 'Steering_joint_RF', 'Steering_joint_LB', 'Steering_joint_RB',
@@ -112,6 +114,9 @@ class InteractiveCamera:
         self.chassis_id = chassis_id
         self.cam = mujoco.MjvCamera()
         self.opt = mujoco.MjvOption()
+
+        # Hide Group 3 (collision meshes) by default to eliminate transparent overdraw
+        self.opt.geomgroup[3] = 0
 
         # Configure initial chassis tracking camera
         if chassis_id != -1:
@@ -199,11 +204,14 @@ def get_hardware_keyboard_state(window) -> dict:
 # Main Simulation Runner
 # -----------------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description='MobED 120 FPS Direct GLFW MuJoCo Simulator')
-    parser.add_argument('--arena', type=str, default='playground', choices=['playground', 'rmuc', 'flat'],
-                        help='Arena scene: playground (default for curb/slope obstacle testing), rmuc, flat')
+    parser = argparse.ArgumentParser(description='MobED / ROBOX V2 120 FPS Direct GLFW MuJoCo Simulator')
+    parser.add_argument('--arena', type=str, default='rmuc2027',
+                        choices=['rmuc2027', 'rmuc2027_hd', 'robox', 'playground', 'flat'],
+                        help='Arena scene: rmuc2027 (default: 120 FPS Lite RMUC 2027 + ROBOX V2), rmuc2027_hd (Original HD CAD), robox/flat (ROBOX V2 Flat Ground), playground (ROBOX V2 Obstacle testbench)')
+    parser.add_argument('--robot', type=str, default=None, choices=['robox', 'mobed'],
+                        help='Robot model override: robox (ROBOX V2, 30kg) or mobed (legacy MobED). Auto-detected if omitted.')
     parser.add_argument('--keyframe', type=str, default='home',
-                        help='Spawn location keyframe (home [default: 10cm curb], curb_5cm, curb_20cm, plaza, test_bumps, test_slope_23, test_bunker, test_flyslope)')
+                        help='Spawn location keyframe (rmuc2027: home/home_red, home_blue, test_center, test_platform_top; playground: home, curb_5cm, curb_20cm, plaza, etc.)')
     parser.add_argument('--climb', type=str, default='normal', choices=['normal', 'stair', 'on', 'off'],
                         help='Climb mode: normal (Mode 1: Paper standard, default), stair (Mode 2: 200mm stair), off')
     parser.add_argument('--model', type=str, default=None, help='Custom MJCF model path')
@@ -212,16 +220,32 @@ def main():
     # 1. Select scene XML
     if args.model:
         xml_path = args.model
-    elif args.arena == 'flat':
-        xml_path = FLAT_XML
-    elif args.arena == 'rmuc' and os.path.exists(RMUC_XML):
-        xml_path = RMUC_XML
+    elif args.arena == 'rmuc2027' and os.path.exists(RMUC2027_LITE_XML):
+        xml_path = RMUC2027_LITE_XML
+    elif args.arena == 'rmuc2027_hd' and os.path.exists(RMUC2027_HD_XML):
+        xml_path = RMUC2027_HD_XML
+    elif args.arena in ['robox', 'flat'] and os.path.exists(ROBOX_V2_XML):
+        xml_path = ROBOX_V2_XML
+    elif args.arena == 'playground' and os.path.exists(PLAYGROUND_XML):
+        xml_path = PLAYGROUND_XML
+    elif os.path.exists(RMUC2027_LITE_XML):
+        xml_path = RMUC2027_LITE_XML
     elif os.path.exists(PLAYGROUND_XML):
         xml_path = PLAYGROUND_XML
-    elif os.path.exists(RMUC_XML):
-        xml_path = RMUC_XML
     else:
-        xml_path = FLAT_XML
+        xml_path = ROBOX_V2_XML
+
+    # Determine robot model type: 0 = ROBOX_V2, 1 = MOBED_LEGACY
+    if args.robot == 'robox':
+        robot_model_type = 0
+    elif args.robot == 'mobed':
+        robot_model_type = 1
+    elif 'robox' in xml_path.lower() or 'rmuc2027' in xml_path.lower() or 'playground' in xml_path.lower():
+        robot_model_type = 0
+    else:
+        robot_model_type = 1
+
+    robot_name_str = "ROBOX V2 (30.00 kg Standard)" if robot_model_type == 0 else "MobED Legacy"
 
     # Climb FSM mode: default PAPER_NORMAL (1), STAIR_200MM (2), or DISABLED (0)
     if args.climb == 'off':
@@ -232,6 +256,7 @@ def main():
         climb_mode_val = 1
 
     print(f'==> Loading MuJoCo Model: {xml_path}')
+    print(f'==> Robot Model Target:   {robot_name_str}')
     model = mujoco.MjModel.from_xml_path(xml_path)
     data = mujoco.MjData(model)
 
@@ -241,9 +266,16 @@ def main():
         mujoco.mj_resetDataKeyframe(model, data, key_id)
         for i, name in enumerate(JOINT_NAMES[:8]):
             jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
-            data.ctrl[i] = float(data.qpos[model.jnt_qposadr[jid]])
+            if jid != -1:
+                data.ctrl[i] = float(data.qpos[model.jnt_qposadr[jid]])
         applied = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_KEY, key_id)
         print(f"==> Keyframe '{applied}' applied successfully.")
+    else:
+        if model.nkey > 0:
+            avail_keys = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_KEY, k) for k in range(model.nkey)]
+            print(f"==> Notice: Keyframe '{args.keyframe}' not found. Available: {avail_keys}. Using default initial pose.")
+        else:
+            print(f"==> Notice: Keyframe '{args.keyframe}' not found. Using default initial pose.")
     mujoco.mj_forward(model, data)
 
     # 3. Load native C++ algorithm dylib
@@ -255,6 +287,7 @@ def main():
     lib.mobed_create.restype = ctypes.c_void_p
     lib.mobed_destroy.argtypes = [ctypes.c_void_p]
     lib.mobed_reset.argtypes = [ctypes.c_void_p]
+    lib.mobed_set_robot_model.argtypes = [ctypes.c_void_p, ctypes.c_int]
     lib.mobed_update.argtypes = [
         ctypes.c_void_p,
         ctypes.POINTER(SensorInputs),
@@ -266,18 +299,20 @@ def main():
     controller = lib.mobed_create()
     if not controller:
         raise RuntimeError("Failed to allocate MobedControllerCore instance!")
+    lib.mobed_set_robot_model(controller, robot_model_type)
+    lib.mobed_reset(controller)
 
     # 4. Initialize GLFW window on Main Thread
     if not glfw.init():
         raise RuntimeError("Failed to initialize GLFW!")
 
-    # Request MSAA 4x for smooth anti-aliased rendering
-    glfw.window_hint(glfw.SAMPLES, 4)
+    # Disable heavy MSAA on Retina displays to eliminate pixel fill-rate bottleneck
+    glfw.window_hint(glfw.SAMPLES, 0)
 
     window_width, window_height = 1280, 800
     window = glfw.create_window(
         window_width, window_height,
-        f"MobED 120 FPS Simulation — [{args.arena.upper()}] (RoboMaster Full Multi-Key)",
+        f"MobED / ROBOX V2 Simulation — [{args.arena.upper()}] ({robot_name_str})",
         None, None
     )
     if not window:
@@ -310,7 +345,7 @@ def main():
     # Pre-allocate C structs
     s_in = SensorInputs()
     c_in = CommandInputs()
-    c_in.target_height = 0.205
+    c_in.target_height = 0.228 if robot_model_type == 0 else 0.205
     c_in.target_roll   = 0.0
     c_in.target_pitch  = 0.0
     c_in.posture_mode  = 0
@@ -341,6 +376,7 @@ def main():
     print("    [A / D]       Pure Lateral Strafe (when stopped, 391mm Wide Stance)")
     print("    [Q / E]       In-place Spin CCW / CW (1.8 rad/s)")
     print("    [Space / X]   Brake / Soft Stop (Release keys to coast to stop)")
+    print("    [H]           Toggle Collision Overlay (Group 3: ON / OFF)")
     print("    [C]           Toggle Mode (Mode 1: Paper Normal <-> Mode 2: Stair 200mm)")
     print("    [1 / 2 / 0]   Direct Mode Select: [1] Paper Normal | [2] Stair 200mm | [0] Disabled")
     print("    Mouse Drag    Left: Rotate around car | Right: Pan | Scroll: Zoom")
@@ -353,6 +389,7 @@ def main():
     prev_key_1 = False
     prev_key_2 = False
     prev_key_0 = False
+    prev_key_h = False
 
     # Timing variables
     last_sim_time = time.perf_counter()
@@ -427,6 +464,7 @@ def main():
                     key_1 = (glfw.get_key(window, glfw.KEY_1) == glfw.PRESS)
                     key_2 = (glfw.get_key(window, glfw.KEY_2) == glfw.PRESS)
                     key_0 = (glfw.get_key(window, glfw.KEY_0) == glfw.PRESS)
+                    key_h = (glfw.get_key(window, glfw.KEY_H) == glfw.PRESS)
 
                     if key_c and not prev_key_c:
                         current_climb_mode = 1 if current_climb_mode == 2 else 2
@@ -437,10 +475,16 @@ def main():
                     elif key_0 and not prev_key_0:
                         current_climb_mode = 0
 
+                    if key_h and not prev_key_h:
+                        camera_ctrl.opt.geomgroup[3] = 1 - camera_ctrl.opt.geomgroup[3]
+                        col_state = "SHOWN" if camera_ctrl.opt.geomgroup[3] else "HIDDEN"
+                        print(f"\n==> [H] Collision Overlay (Group 3): {col_state}")
+
                     prev_key_c = key_c
                     prev_key_1 = key_1
                     prev_key_2 = key_2
                     prev_key_0 = key_0
+                    prev_key_h = key_h
 
                     c_in.climb_mode = current_climb_mode
 

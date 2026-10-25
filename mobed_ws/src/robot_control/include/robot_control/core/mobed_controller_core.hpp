@@ -64,6 +64,7 @@ public:
     ~MobedControllerCore() = default;
 
     void reset();
+    void setRobotModel(RobotModelType type);
     void update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out);
 
 private:
@@ -80,11 +81,11 @@ private:
     std::unique_ptr<estimation::ClimbGeometryEstimator> climb_geometry_estimator_;
     std::unique_ptr<tasks::TaskController> task_controller_;
 
-    // Polarity & offset mappings
+    // Polarity & offset mappings (ROBOX V2 defaults)
     std::array<double, 4> steer_signs_ = {1.0, 1.0, 1.0, 1.0};
     std::array<double, 4> ecc_signs_   = {1.0, -1.0, 1.0, -1.0};
-    std::array<double, 4> wheel_signs_ = {1.0, -1.0, 1.0, -1.0};
-    std::array<double, 4> ecc_offsets_ = {-1.9003, -3.0526, 1.5320, -3.0473};
+    std::array<double, 4> wheel_signs_ = {-1.0, 1.0, -1.0, 1.0};
+    std::array<double, 4> ecc_offsets_ = {M_PI, M_PI, M_PI, M_PI};
 
     // Tracking states
     std::array<double, 4> prev_cad_ecc_ = {0.0, 0.0, 0.0, 0.0};
@@ -150,6 +151,7 @@ extern "C" {
     void* mobed_create();
     void  mobed_destroy(void* handle);
     void  mobed_reset(void* handle);
+    void  mobed_set_robot_model(void* handle, int model_type);
     void  mobed_update(void* handle,
                        const robot_control::SensorInputs* in,
                        const robot_control::CommandInputs* cmd,

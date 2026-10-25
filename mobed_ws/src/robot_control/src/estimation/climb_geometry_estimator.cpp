@@ -25,12 +25,14 @@ void ClimbGeometryEstimator::reset() {
     front_z_vel_ = 0.0;
     max_climbed_z_ = 0.0;
     crest_confirm_timer_ = 0.0;
+    contact_confidence_.fill(0.0);
 }
 
 void ClimbGeometryEstimator::update(
     const BodyState& body_state,
     const std::array<Eigen::Vector3d, NUM_LEGS>& contact_points_world,
     const Eigen::Vector4d& current_ecc_angles,
+    const Eigen::Vector4d& current_ecc_efforts,
     const Eigen::Vector4d& current_wheel_vels,
     const Eigen::Vector4d& current_wheel_efforts,
     const Eigen::Vector4d& target_wheel_vels,
@@ -39,7 +41,6 @@ void ClimbGeometryEstimator::update(
     double dt)
 {
     if (dt <= 0.0 || dt > 0.5) return;
-    (void)current_wheel_efforts;
 
     // 1. Contact heights in gravity-aligned world frame
     double f_h = 0.5 * (contact_points_world[FL].z() + contact_points_world[FR].z());
@@ -84,6 +85,40 @@ void ClimbGeometryEstimator::update(
     // When nose is pitching up, omega_body.y() < 0 (right-hand rule around body +Y left axis)
     geometry_.nose_up_pitch_rate = -omega_body.y();
 
+    // Proprioceptive support observer.  This is deliberately separate from
+    // ContactDetector's obstacle-impact thresholds: it estimates whether a
+    // leg is carrying a persistent load using only the existing eccentric
+    // joint feedback.  A short LPF/hysteresis prevents one-cycle effort
+    // spikes and position-tracking transients from becoming contact events.
+    for (int i = 0; i < NUM_LEGS; ++i) {
+        const bool loaded = std::abs(current_ecc_efforts(i)) > 1.0;
+        const double raw_confidence = loaded ? 1.0 : 0.0;
+        const double alpha_contact = std::clamp(dt / (dt + 0.08), 0.0, 1.0);
+        contact_confidence_[i] += alpha_contact * (raw_confidence - contact_confidence_[i]);
+        geometry_.contact_confidence[i] = contact_confidence_[i];
+    }
+    geometry_.front_contact_confidence = std::min(
+        geometry_.contact_confidence[FL], geometry_.contact_confidence[FR]);
+    geometry_.rear_contact_confidence = std::min(
+        geometry_.contact_confidence[RL], geometry_.contact_confidence[RR]);
+
+    // The FK wheel height is not a direct terrain measurement and can be
+    // biased by chassis pitch.  Keep this as a candidate tolerance; load and
+    // attitude consistency still have to agree before the FSM advances.
+    const double platform_height_tolerance = 0.08;
+    const bool front_load_stable = geometry_.front_contact_confidence > 0.65;
+    const bool rear_load_stable = geometry_.rear_contact_confidence > 0.65;
+    geometry_.front_platform_contact =
+        front_load_stable &&
+        geometry_.front_height > effective_h - platform_height_tolerance &&
+        std::abs(geometry_.front_z_vel) < 0.15 &&
+        std::abs(geometry_.nose_up_pitch_rate) < 0.30;
+    geometry_.rear_platform_contact =
+        rear_load_stable &&
+        geometry_.rear_height > effective_h - platform_height_tolerance &&
+        std::abs(geometry_.delta_height) < 0.10 &&
+        std::abs(geometry_.body_pitch) < 0.50;
+
     // 3. Rear hip height in world frame (posture joint is l_ecc*cos(q_r) above wheel axle)
     double q_r_avg = 0.5 * (current_ecc_angles(RL) + current_ecc_angles(RR));
     geometry_.rear_hip_z = geometry_.rear_height + params_.r_wheel + params_.l_ecc * std::cos(q_r_avg);
@@ -109,7 +144,7 @@ void ClimbGeometryEstimator::update(
     bool fl_spinning = std::abs(current_wheel_vels(FL)) > 0.3 * std::max(0.5, std::abs(target_wheel_vels(FL)));
     bool fr_spinning = std::abs(current_wheel_vels(FR)) > 0.3 * std::max(0.5, std::abs(target_wheel_vels(FR)));
     bool front_wheels_active = fl_spinning || fr_spinning || (std::abs(current_wheel_vels(FL)) > 0.8);
-    double front_crest_thresh = std::clamp(effective_h * 0.70, 0.035, 0.16);
+    double front_crest_thresh = std::clamp(effective_h * 0.60, 0.035, 0.14);
     bool climb_height_valid = (geometry_.delta_height >= front_crest_thresh);
     bool climb_velocity_plateau = (std::abs(front_z_vel_) < 0.030);
     bool pitch_rate_leveling = (geometry_.nose_up_pitch_rate <= 0.04);

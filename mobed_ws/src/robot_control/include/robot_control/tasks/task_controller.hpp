@@ -101,6 +101,33 @@ struct TaskControllerParams {
     double front_roll_speed = 2.5;
     double rear_roll_speed = 2.5;
     bool active_pitch_counter_balance = true;
+
+    // Event-driven stair FSM guards.  Timers are safety bounds, not the
+    // normal transition mechanism.
+    double front_climb_min_time = 0.15;
+    double front_climb_max_time = 1.80;
+    // The front axle must slide onto the plateau before the rear axle is
+    // lifted; a blocked-body shortcut is intentionally not used here.
+    double straddle_min_time = 0.30;
+    double straddle_max_time = 1.60;
+    double rear_lift_min_time = 0.20;
+    double rear_lift_max_time = 1.80;
+    double rear_lift_trigger_distance = 0.12; // minimum real slide before rear lift
+    // Diagnostic rear landing angle: one additional 45-degree rotation past
+    // -pi, used to test whether the rear eccentric wheel can step onto the
+    // plateau.  Front legs remain at exactly -pi.
+    double rear_landing_angle = -3.9269908169872414; // -pi - pi/4
+    double rear_vault_min_time = 0.25;
+    double rear_vault_max_time = 3.00;
+    double post_reset_min_time = 0.25;
+    double post_reset_max_time = 2.00;
+
+    double climb_confirm_time = 0.10;
+    double climb_max_pitch = 0.75;       // rad, hard safety limit
+    double climb_max_roll = 0.55;        // rad, hard safety limit
+    double climb_max_slip_ratio = 0.97;
+    double climb_ecc_rate = 8.0;         // rad/s, FSM position slew limit
+    double climb_wheel_accel = 8.0;      // m/s^2, wheel linear speed slew limit
 };
 
 class TaskController {
@@ -209,9 +236,13 @@ private:
     double cooldown_timer_ = 0.0;
     double travel_distance_ = 0.0;
     double stall_jam_timer_ = 0.0;
+    double condition_timer_ = 0.0;
+    Eigen::Vector4d wheel_speed_command_ = Eigen::Vector4d::Zero();
+    bool ecc_command_initialized_ = false;
 
     double blend_out_weight_ = 0.0;
     bool has_climbed_ = false;
+    bool climb_fault_latched_ = false;
     bool coordinated_lift_active_ = false;
     double landing_rear_q_ = 0.0;
 
@@ -221,6 +252,12 @@ private:
 
     void transitionTo(ClimbState new_state);
     void handleBlendOut(double dt);
+    bool confirmCondition(bool condition, double dt, double required_time);
+    void setWheelSpeedCommand(double linear_speed, double dt);
+    void setWheelSpeedCommand(const Eigen::Vector4d& linear_speeds, double dt);
+    Eigen::Vector4d slewEccAngles(const Eigen::Vector4d& current,
+                                  const Eigen::Vector4d& target,
+                                  double dt);
 };
 
 }  // namespace tasks

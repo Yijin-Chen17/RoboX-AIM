@@ -1,0 +1,412 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="rmuc2027_arena">
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.8 0.85 0.9" rgb2="0.3 0.35 0.45" width="64" height="64" />
+    <mesh name="floor-visual-0" file="floor-visual-0.stl" inertia="shell" />
+    <mesh name="floor-visual-1" file="floor-visual-1.stl" inertia="shell" />
+    <mesh name="floor-visual-2" file="floor-visual-2.stl" inertia="shell" />
+    <mesh name="floor-visual-3" file="floor-visual-3.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-0" file="centre-platform-visual-0.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-1" file="centre-platform-visual-1.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-2" file="centre-platform-visual-2.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-3" file="centre-platform-visual-3.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-4" file="centre-platform-visual-4.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-5" file="centre-platform-visual-5.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-6" file="centre-platform-visual-6.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-7-0" file="centre-platform-visual-7-0.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-7-1" file="centre-platform-visual-7-1.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-8" file="centre-platform-visual-8.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-9" file="centre-platform-visual-9.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-10-0" file="centre-platform-visual-10-0.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-10-1" file="centre-platform-visual-10-1.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-10-2" file="centre-platform-visual-10-2.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-10-3" file="centre-platform-visual-10-3.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-10-4" file="centre-platform-visual-10-4.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-10-5" file="centre-platform-visual-10-5.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-10-6" file="centre-platform-visual-10-6.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-11" file="centre-platform-visual-11.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-12" file="centre-platform-visual-12.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-13" file="centre-platform-visual-13.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-14" file="centre-platform-visual-14.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-15-0" file="centre-platform-visual-15-0.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-15-1" file="centre-platform-visual-15-1.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-16" file="centre-platform-visual-16.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-17" file="centre-platform-visual-17.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-18" file="centre-platform-visual-18.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-19" file="centre-platform-visual-19.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-20" file="centre-platform-visual-20.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-21" file="centre-platform-visual-21.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-22" file="centre-platform-visual-22.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-23" file="centre-platform-visual-23.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-24" file="centre-platform-visual-24.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-25" file="centre-platform-visual-25.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-26" file="centre-platform-visual-26.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-27" file="centre-platform-visual-27.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-28" file="centre-platform-visual-28.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-29" file="centre-platform-visual-29.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-30" file="centre-platform-visual-30.stl" inertia="shell" />
+    <mesh name="centre-platform-visual-31" file="centre-platform-visual-31.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-0" file="red-ramp-dart-station-visual-0.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-1" file="red-ramp-dart-station-visual-1.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-2" file="red-ramp-dart-station-visual-2.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-3" file="red-ramp-dart-station-visual-3.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-4" file="red-ramp-dart-station-visual-4.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-5" file="red-ramp-dart-station-visual-5.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-6" file="red-ramp-dart-station-visual-6.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-7" file="red-ramp-dart-station-visual-7.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-8" file="red-ramp-dart-station-visual-8.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-9-0" file="red-ramp-dart-station-visual-9-0.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-9-1" file="red-ramp-dart-station-visual-9-1.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-10" file="red-ramp-dart-station-visual-10.stl" inertia="shell" />
+    <mesh name="red-ramp-dart-station-visual-11" file="red-ramp-dart-station-visual-11.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-0" file="blue-ramp-dart-station-visual-0.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-1" file="blue-ramp-dart-station-visual-1.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-2" file="blue-ramp-dart-station-visual-2.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-3" file="blue-ramp-dart-station-visual-3.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-4" file="blue-ramp-dart-station-visual-4.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-5" file="blue-ramp-dart-station-visual-5.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-6" file="blue-ramp-dart-station-visual-6.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-7" file="blue-ramp-dart-station-visual-7.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-8" file="blue-ramp-dart-station-visual-8.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-9" file="blue-ramp-dart-station-visual-9.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-10-0" file="blue-ramp-dart-station-visual-10-0.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-10-1" file="blue-ramp-dart-station-visual-10-1.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-11" file="blue-ramp-dart-station-visual-11.stl" inertia="shell" />
+    <mesh name="blue-ramp-dart-station-visual-12" file="blue-ramp-dart-station-visual-12.stl" inertia="shell" />
+    <mesh name="red-road-visual-0" file="red-road-visual-0.stl" inertia="shell" />
+    <mesh name="red-road-visual-1" file="red-road-visual-1.stl" inertia="shell" />
+    <mesh name="red-road-visual-2" file="red-road-visual-2.stl" inertia="shell" />
+    <mesh name="red-road-visual-3" file="red-road-visual-3.stl" inertia="shell" />
+    <mesh name="red-road-visual-4" file="red-road-visual-4.stl" inertia="shell" />
+    <mesh name="blue-road-visual-0" file="blue-road-visual-0.stl" inertia="shell" />
+    <mesh name="blue-road-visual-1" file="blue-road-visual-1.stl" inertia="shell" />
+    <mesh name="blue-road-visual-2" file="blue-road-visual-2.stl" inertia="shell" />
+    <mesh name="blue-road-visual-3" file="blue-road-visual-3.stl" inertia="shell" />
+    <mesh name="blue-road-visual-4" file="blue-road-visual-4.stl" inertia="shell" />
+    <mesh name="red-resource-zone-visual-0" file="red-resource-zone-visual-0.stl" inertia="shell" />
+    <mesh name="red-resource-zone-visual-1" file="red-resource-zone-visual-1.stl" inertia="shell" />
+    <mesh name="red-resource-zone-visual-2" file="red-resource-zone-visual-2.stl" inertia="shell" />
+    <mesh name="red-resource-zone-visual-3" file="red-resource-zone-visual-3.stl" inertia="shell" />
+    <mesh name="red-resource-zone-visual-4" file="red-resource-zone-visual-4.stl" inertia="shell" />
+    <mesh name="red-resource-zone-visual-5" file="red-resource-zone-visual-5.stl" inertia="shell" />
+    <mesh name="red-resource-zone-visual-6" file="red-resource-zone-visual-6.stl" inertia="shell" />
+    <mesh name="red-resource-zone-visual-7" file="red-resource-zone-visual-7.stl" inertia="shell" />
+    <mesh name="blue-resource-zone-visual-0" file="blue-resource-zone-visual-0.stl" inertia="shell" />
+    <mesh name="blue-resource-zone-visual-1" file="blue-resource-zone-visual-1.stl" inertia="shell" />
+    <mesh name="blue-resource-zone-visual-2" file="blue-resource-zone-visual-2.stl" inertia="shell" />
+    <mesh name="blue-resource-zone-visual-3" file="blue-resource-zone-visual-3.stl" inertia="shell" />
+    <mesh name="blue-resource-zone-visual-4" file="blue-resource-zone-visual-4.stl" inertia="shell" />
+    <mesh name="blue-resource-zone-visual-5" file="blue-resource-zone-visual-5.stl" inertia="shell" />
+    <mesh name="blue-resource-zone-visual-6" file="blue-resource-zone-visual-6.stl" inertia="shell" />
+    <mesh name="blue-resource-zone-visual-7" file="blue-resource-zone-visual-7.stl" inertia="shell" />
+    <mesh name="red-fortress-visual-0" file="red-fortress-visual-0.stl" inertia="shell" />
+    <mesh name="red-fortress-visual-1" file="red-fortress-visual-1.stl" inertia="shell" />
+    <mesh name="red-fortress-visual-2" file="red-fortress-visual-2.stl" inertia="shell" />
+    <mesh name="red-fortress__source_4059143_0-collision" file="red-fortress/source_4059143_0-collision.stl" inertia="shell" />
+    <mesh name="blue-fortress-visual-0" file="blue-fortress-visual-0.stl" inertia="shell" />
+    <mesh name="blue-fortress-visual-1" file="blue-fortress-visual-1.stl" inertia="shell" />
+    <mesh name="blue-fortress-visual-2" file="blue-fortress-visual-2.stl" inertia="shell" />
+    <mesh name="blue-fortress__source_4059143_0-collision" file="blue-fortress/source_4059143_0-collision.stl" inertia="shell" />
+    <mesh name="base-footing-visual-0" file="base-footing-visual-0.stl" inertia="shell" />
+    <mesh name="base-footing-visual-1" file="base-footing-visual-1.stl" inertia="shell" />
+    <mesh name="base-footing-visual-2" file="base-footing-visual-2.stl" inertia="shell" />
+    <mesh name="base-footing-visual-3" file="base-footing-visual-3.stl" inertia="shell" />
+    <mesh name="base-footing__source_4069592_0-collision" file="base-footing/source_4069592_0-collision.stl" inertia="shell" />
+    <mesh name="fan-frame-visual-0" file="fan-frame-visual-0.stl" inertia="shell" />
+    <mesh name="fan-frame-visual-1" file="fan-frame-visual-1.stl" inertia="shell" />
+    <mesh name="fan-frame__source_4070010_0-collision" file="fan-frame/source_4070010_0-collision.stl" inertia="shell" />
+    <mesh name="fan-visual-0" file="fan-visual-0.stl" inertia="shell" />
+    <mesh name="fan__source_2717102_0-collision" file="fan/source_2717102_0-collision.stl" inertia="shell" />
+    <mesh name="base-visual-0" file="base-visual-0.stl" inertia="shell" />
+    <mesh name="base-visual-1" file="base-visual-1.stl" inertia="shell" />
+    <mesh name="base-visual-2" file="base-visual-2.stl" inertia="shell" />
+    <mesh name="base-visual-3" file="base-visual-3.stl" inertia="shell" />
+    <mesh name="base-visual-4" file="base-visual-4.stl" inertia="shell" />
+    <mesh name="base-visual-5" file="base-visual-5.stl" inertia="shell" />
+    <mesh name="base-visual-6" file="base-visual-6.stl" inertia="shell" />
+    <mesh name="base-visual-7" file="base-visual-7.stl" inertia="shell" />
+    <mesh name="base-visual-8" file="base-visual-8.stl" inertia="shell" />
+    <mesh name="base-visual-9" file="base-visual-9.stl" inertia="shell" />
+    <mesh name="base__source_4774244_0-collision-0" file="base/source_4774244_0-collision-0.stl" inertia="shell" />
+    <mesh name="base__source_4774244_0-collision-1" file="base/source_4774244_0-collision-1.stl" inertia="shell" />
+  </asset>
+  <worldbody>
+    <light name="sun" directional="true" pos="0 1.65 18" dir="0.2 0.3 -1.2" diffuse="0.8 0.8 0.78" specular="0.25 0.25 0.25" castshadow="true" />
+    <light name="sky_fill" directional="true" pos="0 1.65 18" dir="-0.2 -0.3 -0.8" diffuse="0.35 0.38 0.42" specular="0.05 0.05 0.05" castshadow="false" />
+    <light name="center_spot" pos="0 1.65 8" dir="0 0 -1" diffuse="0.6 0.6 0.6" specular="0.3 0.3 0.3" cutoff="60" castshadow="false" />
+    <light name="red_zone_light" pos="10 1.65 8" dir="0 0 -1" diffuse="0.55 0.45 0.45" specular="0.2 0.1 0.1" cutoff="65" castshadow="false" />
+    <light name="blue_zone_light" pos="-10 1.65 8" dir="0 0 -1" diffuse="0.45 0.45 0.55" specular="0.1 0.1 0.2" cutoff="65" castshadow="false" />
+    <camera name="arena_overview" pos="0 -16 16" xyaxes="1 0 0 0 0.65 0.76" />
+    <camera name="cam_red_overview" pos="12 -8 8" xyaxes="0.8 -0.6 0 0.35 0.47 0.81" />
+    <camera name="cam_blue_overview" pos="-12 -8 8" xyaxes="0.8 0.6 0 -0.35 0.47 0.81" />
+    <camera name="cam_center_platform" pos="0 -3 3.5" xyaxes="1 0 0 0 0.55 0.83" />
+    <body name="floor_0" pos="0.000007 1.624344 -1.941344" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="floor-visual-0" rgba="0.0000 0.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="floor-visual-1" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="floor-visual-2" rgba="1.0000 0.0000 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="floor-visual-3" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom name="col_arena_floor" type="box" pos="0 0 0.15" size="14.0 8.0 0.15" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0.2 0.3 0.4 0.2" mass="0" />
+      <geom name="col_wall_north" type="box" pos="0.0 8.05 1.50" size="14.0 0.05 1.20" group="3" contype="1" conaffinity="1" rgba="0.5 0.5 0.5 0.2" mass="0" />
+      <geom name="col_wall_south" type="box" pos="0.0 -8.05 1.50" size="14.0 0.05 1.20" group="3" contype="1" conaffinity="1" rgba="0.5 0.5 0.5 0.2" mass="0" />
+      <geom name="col_wall_east" type="box" pos="14.05 0.0 1.50" size="0.05 8.05 1.20" group="3" contype="1" conaffinity="1" rgba="0.5 0.5 0.5 0.2" mass="0" />
+      <geom name="col_wall_west" type="box" pos="-14.05 0.0 1.50" size="0.05 8.05 1.20" group="3" contype="1" conaffinity="1" rgba="0.5 0.5 0.5 0.2" mass="0" />
+    </body>
+    <body name="centre-platform_0" pos="0.000007 1.624344 -1.786908" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="centre-platform-visual-0" rgba="0.0000 0.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-1" rgba="0.0660 0.0040 0.5930 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-2" rgba="0.7490 0.7490 0.7490 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-3" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-4" rgba="1.0000 0.0000 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-5" rgba="1.0000 0.0271 0.0271 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-6" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-7-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-7-1" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-8" rgba="0.0000 0.0000 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-9" rgba="0.0980 0.0980 0.0980 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-10-0" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-10-1" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-10-2" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-10-3" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-10-4" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-10-5" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-10-6" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-11" rgba="0.5882 0.5882 0.5882 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-12" rgba="0.8420 0.8990 0.9330 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-13" rgba="0.0000 1.0000 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-14" rgba="0.2490 0.5930 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-15-0" rgba="0.2520 0.2520 0.2520 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-15-1" rgba="0.2520 0.2520 0.2520 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-16" rgba="0.3990 0.3970 0.6410 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-17" rgba="0.6000 1.0000 0.6000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-18" rgba="0.7300 0.4700 0.3300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-19" rgba="0.9100 0.7700 0.3700 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-20" rgba="0.2549 0.2549 0.2549 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-21" rgba="0.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-22" rgba="0.0650 0.9810 0.0620 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-23" rgba="0.0800 0.1000 0.1100 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-24" rgba="0.1440 0.0340 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-25" rgba="0.2431 0.5176 0.9490 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-26" rgba="0.3020 0.3020 0.3020 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-27" rgba="0.3922 0.3922 0.3922 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-28" rgba="0.4400 0.1400 0.1400 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-29" rgba="0.6700 0.0000 0.5300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-30" rgba="0.8784 0.9490 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="centre-platform-visual-31" rgba="1.0000 1.0000 0.9490 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom name="col_cp_step1" type="box" pos="0 0 0.2228" size="0.77 1.08 0.0772" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_step2" type="box" pos="0 0 0.3478" size="1.87 1.42 0.2022" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_step3" type="box" pos="0 0 0.3978" size="1.21 1.19 0.2522" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_step4_w" type="box" pos="-0.96 0 0.4378" size="0.33 1.19 0.2922" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_step4_e" type="box" pos="0.96 0 0.4378" size="0.33 1.19 0.2922" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_step5" type="box" pos="0 0 0.4478" size="0.78 0.90 0.3022" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_step6" type="box" pos="0 0 0.5228" size="0.50 0.60 0.3772" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ascent_w" type="box" pos="-3.05 0 0.8978" size="0.20 3.75 0.7522" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ascent_e" type="box" pos="3.05 0 0.8978" size="0.20 3.75 0.7522" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_deck_w" type="box" pos="-3.05 0 1.90" size="0.22 3.90 0.05" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_deck_e" type="box" pos="3.05 0 1.90" size="0.22 3.90 0.05" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_deck_n" type="box" pos="0 3.90 1.90" size="3.05 0.22 0.05" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_deck_s" type="box" pos="0 -3.90 1.90" size="3.05 0.22 0.05" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_track_0" type="box" pos="3.2500 0.0000 0.2978" size="0.60 1.35 0.1522" euler="0 0 0.0000" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_slope_0" type="box" pos="4.3500 0.0000 0.2978" size="0.522 1.35 0.03" euler="0 0.296 0.0000" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_track_1" type="box" pos="2.2981 2.2981 0.2978" size="0.60 1.35 0.1522" euler="0 0 0.7854" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_slope_1" type="box" pos="3.0759 3.0759 0.2978" size="0.522 1.35 0.03" euler="0 0.296 0.7854" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_track_2" type="box" pos="0.0000 3.2500 0.2978" size="0.60 1.35 0.1522" euler="0 0 1.5708" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_slope_2" type="box" pos="0.0000 4.3500 0.2978" size="0.522 1.35 0.03" euler="0 0.296 1.5708" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_track_3" type="box" pos="-2.2981 2.2981 0.2978" size="0.60 1.35 0.1522" euler="0 0 2.3562" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_slope_3" type="box" pos="-3.0759 3.0759 0.2978" size="0.522 1.35 0.03" euler="0 0.296 2.3562" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_track_4" type="box" pos="-3.2500 0.0000 0.2978" size="0.60 1.35 0.1522" euler="0 0 3.1416" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_slope_4" type="box" pos="-4.3500 0.0000 0.2978" size="0.522 1.35 0.03" euler="0 0.296 3.1416" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_track_5" type="box" pos="-2.2981 -2.2981 0.2978" size="0.60 1.35 0.1522" euler="0 0 3.9270" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_slope_5" type="box" pos="-3.0759 -3.0759 0.2978" size="0.522 1.35 0.03" euler="0 0.296 3.9270" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_track_6" type="box" pos="-0.0000 -3.2500 0.2978" size="0.60 1.35 0.1522" euler="0 0 4.7124" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_slope_6" type="box" pos="-0.0000 -4.3500 0.2978" size="0.522 1.35 0.03" euler="0 0.296 4.7124" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_track_7" type="box" pos="2.2981 -2.2981 0.2978" size="0.60 1.35 0.1522" euler="0 0 5.4978" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_ring_slope_7" type="box" pos="3.0759 -3.0759 0.2978" size="0.522 1.35 0.03" euler="0 0.296 5.4978" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_gantry_pillar_LB" type="box" pos="-1.15 -1.15 1.69" size="0.10 0.10 1.31" group="3" contype="1" conaffinity="1" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_gantry_pillar_RT" type="box" pos="1.15 1.15 1.69" size="0.10 0.10 1.31" group="3" contype="1" conaffinity="1" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_gantry_arch_top" type="box" pos="0 0 3.35" size="1.80 0.25 0.15" group="3" contype="1" conaffinity="1" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_cp_gantry_strut_LB" type="box" pos="-0.65 -0.65 2.85" size="0.45 0.12 0.12" group="3" contype="1" conaffinity="1" rgba="0 0.8 0.8 0.3" mass="0" euler="0 0.45 0.785" />
+      <geom name="col_cp_gantry_strut_RT" type="box" pos="0.65 0.65 2.85" size="0.45 0.12 0.12" group="3" contype="1" conaffinity="1" rgba="0 0.8 0.8 0.3" mass="0" euler="0 -0.45 0.785" />
+    </body>
+    <body name="red-ramp-dart-station_0" pos="6.300645 -3.139021 -1.837582" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-0" rgba="0.2549 0.2549 0.2549 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-1" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-2" rgba="1.0000 0.0271 0.0271 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-3" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-4" rgba="0.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-5" rgba="0.0039 0.0039 0.0039 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-6" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-7" rgba="0.0000 0.0000 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-8" rgba="0.1333 0.2902 0.7451 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-9-0" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-9-1" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-10" rgba="0.6000 0.6000 0.6000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-ramp-dart-station-visual-11" rgba="0.7725 0.7529 0.7333 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom name="col_red-ramp-dart-station_0_fly_ramp" type="box" pos="-0.6550 0 0.596" size="1.895 1.20 0.03" euler="0 -0.2120 0" group="3" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-ramp-dart-station_0_platform_pad" type="box" pos="2.9000 0 0.596" size="1.70 1.20 0.40" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-ramp-dart-station_0_step_lvl1" type="box" pos="6.6600 -1.9000 0.246" size="1.04 0.62 0.05" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-ramp-dart-station_0_step_lvl2" type="box" pos="6.6600 -1.9000 0.346" size="0.70 0.62 0.05" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+    </body>
+    <body name="blue-ramp-dart-station_0" pos="-6.300631 6.387708 -1.837582" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-0" rgba="0.0660 0.0040 0.5930 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-1" rgba="0.2549 0.2549 0.2549 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-2" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-3" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-4" rgba="0.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-5" rgba="0.0039 0.0039 0.0039 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-6" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-7" rgba="0.0000 0.0000 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-8" rgba="1.0000 0.0271 0.0271 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-9" rgba="0.1333 0.2902 0.7451 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-10-0" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-10-1" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-11" rgba="0.6000 0.6000 0.6000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-ramp-dart-station-visual-12" rgba="0.7725 0.7529 0.7333 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom name="col_blue-ramp-dart-station_0_fly_ramp" type="box" pos="0.6550 0 0.596" size="1.895 1.20 0.03" euler="0 0.2120 0" group="3" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-ramp-dart-station_0_platform_pad" type="box" pos="-2.9000 0 0.596" size="1.70 1.20 0.40" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-ramp-dart-station_0_step_lvl1" type="box" pos="-6.6600 1.9000 0.246" size="1.04 0.62 0.05" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-ramp-dart-station_0_step_lvl2" type="box" pos="-6.6600 1.9000 0.346" size="0.70 0.62 0.05" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+    </body>
+    <body name="red-road_0" pos="4.258872 7.013032 -1.837582" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="red-road-visual-0" rgba="0.2549 0.2549 0.2549 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-road-visual-1" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-road-visual-2" rgba="1.0000 0.0271 0.0271 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-road-visual-3" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-road-visual-4" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom name="col_red-road_0_step1" type="box" pos="-5.1850 0.5700 0.216" size="0.555 0.35 0.020" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-road_0_step2" type="box" pos="-4.3850 0.5700 0.256" size="0.245 0.35 0.060" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-road_0_step3" type="box" pos="-3.4700 0.5700 0.316" size="0.670 0.35 0.120" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-road_0_deck" type="box" pos="-0.3500 0 0.316" size="2.45 0.70 0.120" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-road_0_bumps_base" type="box" pos="3.3000 0 0.316" size="1.20 0.70 0.120" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-road_0_bump_0" type="cylinder" pos="2.1900 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_1" type="cylinder" pos="2.4400 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_2" type="cylinder" pos="2.6800 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_3" type="cylinder" pos="2.9200 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_4" type="cylinder" pos="3.1500 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_5" type="cylinder" pos="3.4000 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_6" type="cylinder" pos="3.6300 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_7" type="cylinder" pos="3.8800 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_8" type="cylinder" pos="4.1100 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_bump_9" type="cylinder" pos="4.3500 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_red-road_0_ascent_ramp" type="box" pos="5.3700 0 0.886" size="0.98 0.70 0.04" euler="0 -0.4770 0" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_red-road_0_top_pad" type="box" pos="6.4700 0 1.296" size="0.23 0.70 0.04" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+    </body>
+    <body name="blue-road_0" pos="-4.258858 -3.764344 -1.837582" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="blue-road-visual-0" rgba="0.0660 0.0040 0.5930 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-road-visual-1" rgba="0.2549 0.2549 0.2549 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-road-visual-2" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-road-visual-3" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-road-visual-4" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom name="col_blue-road_0_step1" type="box" pos="5.1850 -0.5700 0.216" size="0.555 0.35 0.020" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-road_0_step2" type="box" pos="4.3850 -0.5700 0.256" size="0.245 0.35 0.060" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-road_0_step3" type="box" pos="3.4700 -0.5700 0.316" size="0.670 0.35 0.120" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-road_0_deck" type="box" pos="0.3500 0 0.316" size="2.45 0.70 0.120" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-road_0_bumps_base" type="box" pos="-3.3000 0 0.316" size="1.20 0.70 0.120" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-road_0_bump_0" type="cylinder" pos="-2.1900 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_1" type="cylinder" pos="-2.4400 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_2" type="cylinder" pos="-2.6800 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_3" type="cylinder" pos="-2.9200 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_4" type="cylinder" pos="-3.1500 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_5" type="cylinder" pos="-3.4000 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_6" type="cylinder" pos="-3.6300 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_7" type="cylinder" pos="-3.8800 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_8" type="cylinder" pos="-4.1100 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_bump_9" type="cylinder" pos="-4.3500 0 0.481" size="0.045 0.70" euler="1.5708 0 0" group="3" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" rgba="0.9 0.4 0.2 0.4" mass="0" />
+      <geom name="col_blue-road_0_ascent_ramp" type="box" pos="-5.3700 0 0.886" size="0.98 0.70 0.04" euler="0 0.4770 0" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+      <geom name="col_blue-road_0_top_pad" type="box" pos="-6.4700 0 1.296" size="0.23 0.70 0.04" group="3" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" rgba="0 0.8 0.8 0.3" mass="0" />
+    </body>
+    <body name="red-resource-zone_0" pos="12.340507 7.507026 -1.837582" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="red-resource-zone-visual-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-resource-zone-visual-1" rgba="0.2471 0.2471 0.2471 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-resource-zone-visual-2" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-resource-zone-visual-3" rgba="1.0000 0.0271 0.0271 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-resource-zone-visual-4" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-resource-zone-visual-5" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-resource-zone-visual-6" rgba="0.4200 0.4200 0.4200 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-resource-zone-visual-7" rgba="0.8410 0.8010 0.7150 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom name="col_red-resource-zone_0_dispenser" type="box" pos="1.2000 0.4250 0.60" size="0.45 1.175 0.60" group="3" contype="1" conaffinity="1" rgba="0 0.8 0.8 0.3" mass="0" />
+    </body>
+    <body name="blue-resource-zone_0" pos="-12.340493 -4.258338 -1.837582" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="blue-resource-zone-visual-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-resource-zone-visual-1" rgba="0.2471 0.2471 0.2471 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-resource-zone-visual-2" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-resource-zone-visual-3" rgba="1.0000 0.0271 0.0271 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-resource-zone-visual-4" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-resource-zone-visual-5" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-resource-zone-visual-6" rgba="0.4200 0.4200 0.4200 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-resource-zone-visual-7" rgba="0.8410 0.8010 0.7150 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom name="col_blue-resource-zone_0_dispenser" type="box" pos="-1.2000 -0.4250 0.60" size="0.45 1.175 0.60" group="3" contype="1" conaffinity="1" rgba="0 0.8 0.8 0.3" mass="0" />
+    </body>
+    <body name="red-fortress_0" pos="7.428877 1.624310 -1.672594" quat="1.000000000 -0.000000180 0.000000000 0.000000000">
+      <geom type="mesh" mesh="red-fortress-visual-0" rgba="0.2549 0.2549 0.2549 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-fortress-visual-1" rgba="1.0000 0.0271 0.0271 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-fortress-visual-2" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="red-fortress__source_4059143_0-collision" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="blue-fortress_0" pos="-7.428863 1.624378 -1.672594" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="blue-fortress-visual-0" rgba="0.2549 0.2549 0.2549 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-fortress-visual-1" rgba="1.0000 0.0271 0.0271 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-fortress-visual-2" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="blue-fortress__source_4059143_0-collision" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="base-footing_0" pos="11.541383 1.624344 -1.666172" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="base-footing-visual-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-footing-visual-1" rgba="0.7490 0.7490 0.7490 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-footing-visual-2" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-footing-visual-3" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-footing__source_4069592_0-collision" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="base-footing_1" pos="-11.541639 1.624344 -1.666172" quat="0.000000000 0.000000000 0.000000000 1.000000000">
+      <geom type="mesh" mesh="base-footing-visual-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-footing-visual-1" rgba="0.7490 0.7490 0.7490 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-footing-visual-2" rgba="0.7843 0.7843 0.7059 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-footing-visual-3" rgba="1.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-footing__source_4069592_0-collision" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="fan-frame_0" pos="-13.887489 -1.615876 -1.733922" quat="1.000000000 0.000000000 0.000000000 0.000000000">
+      <geom type="mesh" mesh="fan-frame-visual-0" rgba="0.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="fan-frame-visual-1" rgba="0.0039 0.0039 0.0039 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="fan-frame__source_4070010_0-collision" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="fan-frame_1" pos="13.887503 4.864563 -1.733922" quat="0.000000000 0.000000000 0.000000000 1.000000000">
+      <geom type="mesh" mesh="fan-frame-visual-0" rgba="0.0000 1.0000 1.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="fan-frame-visual-1" rgba="0.0039 0.0039 0.0039 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="fan-frame__source_4070010_0-collision" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="fan_0" pos="13.885812 5.005736 -1.732372" quat="0.707106781 0.000000000 0.018509897 0.706864473">
+      <geom type="mesh" mesh="fan-visual-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="fan__source_2717102_0-collision" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="fan_1" pos="-13.885798 -1.757225 -1.725661" quat="0.706864473 0.018509898 0.000000000 -0.707106781">
+      <geom type="mesh" mesh="fan-visual-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="fan__source_2717102_0-collision" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="base_0" pos="12.224538 1.624094 -0.851965" quat="0.500000000 0.500000000 -0.500000000 -0.500000000">
+      <geom type="mesh" mesh="base-visual-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-1" rgba="0.0650 0.9810 0.0620 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-2" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-3" rgba="0.2490 0.5930 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-4" rgba="0.3360 0.2550 0.0190 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-5" rgba="0.3412 0.3098 0.1608 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-6" rgba="0.4200 0.4200 0.4200 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-7" rgba="0.5100 0.4000 0.1100 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-8" rgba="0.6667 0.7059 0.7647 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-9" rgba="1.0000 0.0000 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base__source_4774244_0-collision-0" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+      <geom type="mesh" mesh="base__source_4774244_0-collision-1" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+    <body name="base_1" pos="-12.226129 1.624594 -0.851965" quat="0.500000000 0.500000000 0.500000000 0.500000000">
+      <geom type="mesh" mesh="base-visual-0" rgba="0.6300 0.6300 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-1" rgba="0.0650 0.9810 0.0620 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-2" rgba="0.2000 0.2000 0.2000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-3" rgba="0.2490 0.5930 0.6300 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-4" rgba="0.3360 0.2550 0.0190 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-5" rgba="0.3412 0.3098 0.1608 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-6" rgba="0.4200 0.4200 0.4200 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-7" rgba="0.5100 0.4000 0.1100 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-8" rgba="0.6667 0.7059 0.7647 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base-visual-9" rgba="1.0000 0.0000 0.0000 1" contype="0" conaffinity="0" group="2" mass="0" />
+      <geom type="mesh" mesh="base__source_4774244_0-collision-0" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+      <geom type="mesh" mesh="base__source_4774244_0-collision-1" group="3" rgba="0.5 0.8 0.5 0.3" mass="0" />
+    </body>
+  </worldbody>
+</mujoco>

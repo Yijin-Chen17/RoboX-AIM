@@ -66,10 +66,23 @@ public:
         cmd_vel_.setZero();
 
         // Polarity Mapping Setup (FL, FR, RL, RR)
-        steer_signs_ = {1.0, 1.0, 1.0, 1.0};
-        ecc_signs_   = {1.0, -1.0, 1.0, -1.0};
-        wheel_signs_ = {1.0, -1.0, 1.0, -1.0};
-        ecc_offsets_ = {-1.9003, -3.0526, 1.5320, -3.0473};
+        this->declare_parameter<std::string>("robot_model", "robox_v2");
+        std::string robot_model = this->get_parameter("robot_model").as_string();
+
+        if (robot_model == "legacy" || robot_model == "mobed_legacy") {
+            steer_signs_ = {1.0, 1.0, 1.0, 1.0};
+            ecc_signs_   = {1.0, -1.0, -1.0, 1.0};
+            wheel_signs_ = {1.0, -1.0, 1.0, -1.0};
+            ecc_offsets_ = {-1.9003, -3.0526, 1.5320, -3.0473};
+            robot_params_.applyModel(RobotModelType::MOBED_LEGACY);
+        } else {
+            // ROBOX V2 Standard (default)
+            steer_signs_ = {1.0, 1.0, 1.0, 1.0};
+            ecc_signs_   = {1.0, -1.0, 1.0, -1.0};
+            wheel_signs_ = {-1.0, 1.0, -1.0, 1.0};
+            ecc_offsets_ = {M_PI, M_PI, M_PI, M_PI};
+            robot_params_.applyModel(RobotModelType::ROBOX_V2);
+        }
 
 
         // ============================================================
@@ -278,22 +291,22 @@ private:
             double vel = has_vel ? msg->velocity[i] : 0.0;
 
             // ---- Steering joints: position + velocity ----
-            if (name == "Steering_joint_LF") {
+            if (name == "Steering_joint_LF" || name == "joint_01") {
                 curr_steer_angles_(0) = pos * steer_signs_[0];
                 curr_steer_velocities_(0) = vel * steer_signs_[0];
-            } else if (name == "Steering_joint_RF") {
+            } else if (name == "Steering_joint_RF" || name == "joint_06") {
                 curr_steer_angles_(1) = pos * steer_signs_[1];
                 curr_steer_velocities_(1) = vel * steer_signs_[1];
-            } else if (name == "Steering_joint_LB") {
+            } else if (name == "Steering_joint_LB" || name == "joint_10") {
                 curr_steer_angles_(2) = pos * steer_signs_[2];
                 curr_steer_velocities_(2) = vel * steer_signs_[2];
-            } else if (name == "Steering_joint_RB") {
+            } else if (name == "Steering_joint_RB" || name == "joint_07") {
                 curr_steer_angles_(3) = pos * steer_signs_[3];
                 curr_steer_velocities_(3) = vel * steer_signs_[3];
             }
 
             // ---- Eccentric joints: position + velocity + effort ----
-            else if (name == "Posture_control_joint_LF") {
+            else if (name == "Posture_control_joint_LF" || name == "joint_02") {
                 double raw_q = (pos - ecc_offsets_[0]) * ecc_signs_[0];
                 while (raw_q > M_PI) raw_q -= 2.0 * M_PI;
                 while (raw_q <= -M_PI) raw_q += 2.0 * M_PI;
@@ -301,7 +314,7 @@ private:
                 curr_ecc_velocities_(0) = vel * ecc_signs_[0];
                 curr_ecc_efforts_(0) = effort;
             }
-            else if (name == "Posture_control_joint_RF") {
+            else if (name == "Posture_control_joint_RF" || name == "joint_05") {
                 double raw_q = (pos - ecc_offsets_[1]) * ecc_signs_[1];
                 while (raw_q > M_PI) raw_q -= 2.0 * M_PI;
                 while (raw_q <= -M_PI) raw_q += 2.0 * M_PI;
@@ -309,7 +322,7 @@ private:
                 curr_ecc_velocities_(1) = vel * ecc_signs_[1];
                 curr_ecc_efforts_(1) = effort;
             }
-            else if (name == "Posture_control_joint_LB") {
+            else if (name == "Posture_control_joint_LB" || name == "joint_12") {
                 double raw_q = (pos - ecc_offsets_[2]) * ecc_signs_[2];
                 while (raw_q > M_PI) raw_q -= 2.0 * M_PI;
                 while (raw_q <= -M_PI) raw_q += 2.0 * M_PI;
@@ -317,7 +330,7 @@ private:
                 curr_ecc_velocities_(2) = vel * ecc_signs_[2];
                 curr_ecc_efforts_(2) = effort;
             }
-            else if (name == "Posture_control_joint_RB") {
+            else if (name == "Posture_control_joint_RB" || name == "joint_08") {
                 double raw_q = (pos - ecc_offsets_[3]) * ecc_signs_[3];
                 while (raw_q > M_PI) raw_q -= 2.0 * M_PI;
                 while (raw_q <= -M_PI) raw_q += 2.0 * M_PI;
@@ -327,19 +340,19 @@ private:
             }
 
             // ---- Wheel joints: velocity + effort ----
-            else if (name == "Wheel_joint_LF") {
+            else if (name == "Wheel_joint_LF" || name == "joint_03") {
                 curr_wheel_velocities_(0) = vel * wheel_signs_[0];
                 curr_wheel_efforts_(0) = effort;
             }
-            else if (name == "Wheel_joint_RF") {
+            else if (name == "Wheel_joint_RF" || name == "joint_04") {
                 curr_wheel_velocities_(1) = vel * wheel_signs_[1];
                 curr_wheel_efforts_(1) = effort;
             }
-            else if (name == "Wheel_joint_LB") {
+            else if (name == "Wheel_joint_LB" || name == "joint_11") {
                 curr_wheel_velocities_(2) = vel * wheel_signs_[2];
                 curr_wheel_efforts_(2) = effort;
             }
-            else if (name == "Wheel_joint_RB") {
+            else if (name == "Wheel_joint_RB" || name == "joint_09") {
                 curr_wheel_velocities_(3) = vel * wheel_signs_[3];
                 curr_wheel_efforts_(3) = effort;
             }
@@ -466,6 +479,7 @@ private:
             climb_geometry_estimator_->update(
                 body_state, contact_points_world,
                 curr_ecc_angles_,
+                curr_ecc_efforts_,
                 curr_wheel_velocities_, curr_wheel_efforts_,
                 prev_target_wheel_, omega_body,
                 task_controller_->getCurbHeight(), dt);

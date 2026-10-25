@@ -4,10 +4,17 @@
 
 namespace robot_control {
 
+enum class RobotModelType {
+    ROBOX_V2 = 0,
+    MOBED_LEGACY = 1
+};
+
 // ============================================================================
 // Robot Physical Parameters — all constants derived from CAD and the paper
 // ============================================================================
 struct RobotParams {
+    RobotModelType model_type = RobotModelType::ROBOX_V2;
+
     // -----------------------------------------------
     // Mass & Inertia (Aligned with Paper Section II.B & III.E)
     // -----------------------------------------------
@@ -29,31 +36,52 @@ struct RobotParams {
         0.0,  0.0,  0.9).finished();
 
     // -----------------------------------------------
-    // Chassis Geometry
+    // Chassis Geometry (ROBOX V2 Standard: 222.6mm half-dimensions)
     // -----------------------------------------------
-    double length_x = 0.15;   // m, half-length from center to steer axis (X)
-    double width_y  = 0.15;   // m, half-width from center to steer axis (Y)
+    double length_x = 0.222574;   // m, half-length from center to steer axis (X)
+    double width_y  = 0.222574;   // m, half-width from center to steer axis (Y)
 
     // -----------------------------------------------
     // Eccentric Mechanism (Posture Control)
     // -----------------------------------------------
-    double l_ecc = 0.075;     // m, eccentric arm length (from posture joint to wheel axle)
+    double l_ecc = 0.072;         // m, eccentric arm length (from posture joint to wheel axle)
 
     // -----------------------------------------------
     // Wheel
     // -----------------------------------------------
-    double r_wheel = 0.10;    // m, wheel radius
+    double r_wheel = 0.10;        // m, wheel radius
 
     // -----------------------------------------------
     // CAD Mechanical Offsets
     // -----------------------------------------------
-    double posture_z_offset = 0.045;  // m, posture joint is 4.5cm below the steer joint
+    double posture_z_offset = 0.0555;  // m, posture joint is 55.5mm below the steer joint
 
     // -----------------------------------------------
     // Height Limits
     // -----------------------------------------------
-    double max_height = 0.22;  // m, maximum chassis height (legs fully vertical)
-    double min_height = 0.08;  // m, minimum chassis height
+    double max_height = 0.228;    // m, maximum chassis height (legs fully vertical)
+    double min_height = 0.084;    // m, minimum chassis height
+
+    void applyModel(RobotModelType type) {
+        model_type = type;
+        if (type == RobotModelType::ROBOX_V2) {
+            length_x = 0.222574;
+            width_y  = 0.222574;
+            l_ecc    = 0.072;
+            r_wheel  = 0.10;
+            posture_z_offset = 0.0555;
+            max_height = 0.228;
+            min_height = 0.084;
+        } else if (type == RobotModelType::MOBED_LEGACY) {
+            length_x = 0.15;
+            width_y  = 0.15;
+            l_ecc    = 0.075;
+            r_wheel  = 0.10;
+            posture_z_offset = 0.045;
+            max_height = 0.22;
+            min_height = 0.08;
+        }
+    }
 
     // -----------------------------------------------
     // Gravity

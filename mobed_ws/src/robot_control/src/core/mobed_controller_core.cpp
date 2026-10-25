@@ -8,13 +8,8 @@ namespace robot_control {
 MobedControllerCore::MobedControllerCore(const RobotParams& params)
     : robot_params_(params)
 {
-    kinematics_ = std::make_shared<kinematics::MobedKinematics>();
+    setRobotModel(robot_params_.model_type);
 
-    controllers::DrivingControllerParams drive_params;
-    controllers::BalanceControllerParams balance_params;
-
-    driving_controller_  = std::make_unique<controllers::DrivingController>(drive_params, kinematics_);
-    balance_controller_  = std::make_unique<controllers::BalanceController>(balance_params, kinematics_);
     state_estimator_     = std::make_unique<estimation::StateEstimator>(robot_params_);
     state_estimator_->startStaticCalibration(50); // fast calibration in sim
     terrain_estimator_   = std::make_unique<estimation::TerrainEstimator>(robot_params_);
@@ -24,6 +19,38 @@ MobedControllerCore::MobedControllerCore(const RobotParams& params)
     task_controller_->setClimbMode(climb_mode_);
     task_controller_->setCurbHeight(0.08); // adaptive 80mm default baseline
 
+    reset();
+}
+
+void MobedControllerCore::setRobotModel(RobotModelType type) {
+    robot_params_.applyModel(type);
+
+    kinematics::MobedParameters k_params;
+    k_params.length_x = robot_params_.length_x;
+    k_params.width_y  = robot_params_.width_y;
+    k_params.l_ecc    = robot_params_.l_ecc;
+    k_params.r_wheel  = robot_params_.r_wheel;
+    k_params.posture_z_offset = robot_params_.posture_z_offset;
+    k_params.max_height = robot_params_.max_height;
+    k_params.min_height = robot_params_.min_height;
+    kinematics_ = std::make_shared<kinematics::MobedKinematics>(k_params);
+
+    controllers::DrivingControllerParams drive_params;
+    controllers::BalanceControllerParams balance_params;
+    driving_controller_ = std::make_unique<controllers::DrivingController>(drive_params, kinematics_);
+    balance_controller_ = std::make_unique<controllers::BalanceController>(balance_params, kinematics_);
+
+    if (type == RobotModelType::ROBOX_V2) {
+        steer_signs_ = {1.0, 1.0, 1.0, 1.0};
+        ecc_signs_   = {1.0, -1.0, 1.0, -1.0};
+        wheel_signs_ = {-1.0, 1.0, -1.0, 1.0};
+        ecc_offsets_ = {M_PI, M_PI, M_PI, M_PI};
+    } else {
+        steer_signs_ = {1.0, 1.0, 1.0, 1.0};
+        ecc_signs_   = {1.0, -1.0, -1.0, 1.0};
+        wheel_signs_ = {1.0, -1.0, 1.0, -1.0};
+        ecc_offsets_ = {-1.9003, -3.0526, 1.5320, -3.0473};
+    }
     reset();
 }
 
@@ -173,6 +200,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     if (climb_mode_ == ClimbMode::STAIR_200MM || task_controller_->isActive()) {
         climb_geometry_estimator_->update(
             body_state, contact_points_world, curr_ecc_angles,
+            curr_ecc_efforts,
             curr_wheel_velocities, curr_wheel_efforts, prev_target_wheel_,
             imu.angular_velocity, task_controller_->getCurbHeight(), dt);
     }
@@ -308,7 +336,8 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
 
     // Direct 200mm Stair Mode Maximum Height Stance:
     // In STAIR_200MM mode before climb: eccentric arms stand strictly vertically downwards (q = 0.0 rad, 6 o'clock).
-    // In STAIR_200MM mode after climb: eccentric arms maintain 180-deg highest point stance (q = -pi rad, 12 o'clock).
+    // In STAIR_200MM mode after climb: eccentric arms hold the 180-degree
+    // highest stance (q = -pi rad).  No second half-turn is required.
     if (climb_mode_ == ClimbMode::STAIR_200MM && !task_controller_->isActive()) {
         if (!task_controller_->hasClimbed()) {
             target_ecc.setZero();
@@ -401,10 +430,9 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
                 if (i == FL || i == FR) wheel_effort += 2.0 * wheel_signs_[i];
                 else wheel_effort += 1.5 * wheel_signs_[i];
             } else if (state == tasks::ClimbState::REAR_BELLY_REST) {
-                // Front wheels point-braked, zero extra forward effort
+                wheel_effort += 2.0 * wheel_signs_[i];
             } else if (state == tasks::ClimbState::REAR_VAULT_LOOP) {
-                if (i == FL || i == FR) wheel_effort += 2.0 * wheel_signs_[i];
-                else wheel_effort += 1.5 * wheel_signs_[i];
+                wheel_effort += 2.0 * wheel_signs_[i];
             } else if (state == tasks::ClimbState::REAR_CREEP_ADVANCE) {
                 wheel_effort += 1.2 * wheel_signs_[i];
             } else if (state == tasks::ClimbState::POST_CLIMB_RESET) {
@@ -444,6 +472,13 @@ void mobed_destroy(void* handle) {
 void mobed_reset(void* handle) {
     if (handle) {
         static_cast<robot_control::MobedControllerCore*>(handle)->reset();
+    }
+}
+
+void mobed_set_robot_model(void* handle, int model_type) {
+    if (handle) {
+        static_cast<robot_control::MobedControllerCore*>(handle)->setRobotModel(
+            static_cast<robot_control::RobotModelType>(model_type));
     }
 }
 

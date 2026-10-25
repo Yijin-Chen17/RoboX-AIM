@@ -11,27 +11,26 @@ namespace robot_control {
 namespace kinematics {
 
 struct MobedParameters {
-    // Distance from base center to steer axes
-    double length_x = 0.15;  // half-length (approx 150mm based on CAD)
-    double width_y = 0.15;   // half-width (approx 150mm based on CAD)
+    // Distance from base center to steer axes (ROBOX V2: 222.6mm)
+    double length_x = 0.222574;  // half-length (222.574mm based on CAD)
+    double width_y = 0.222574;   // half-width (222.574mm based on CAD)
     
-    // Eccentric mechanism parameters
-    // Adjusted from 0.10m to 0.075m to match actual MuJoCo CAD offsets
-    double l_ecc = 0.075;    
+    // Eccentric mechanism parameters (ROBOX V2: 72mm)
+    double l_ecc = 0.072;    
     
     // Wheel parameters
-    double r_wheel = 0.10;   // wheel radius
+    double r_wheel = 0.10;   // wheel radius (100mm)
     
-    // CAD Mechanical Offsets
-    double posture_z_offset = 0.045; // Posture joint is 4.5cm lower than Steer joint
+    // CAD Mechanical Offsets (ROBOX V2: 55.5mm)
+    double posture_z_offset = 0.0555; // Posture joint is 55.5mm lower than Steer joint
 
     // Chassis collision box dimensions (CAD half-dimensions)
-    double chassis_box_x = 0.18; // m
-    double chassis_box_y = 0.13; // m
+    double chassis_box_x = 0.20; // m
+    double chassis_box_y = 0.16; // m
 
     // Limits
-    double max_height = 0.22;
-    double min_height = 0.08;
+    double max_height = 0.228;
+    double min_height = 0.084;
 };
 
 class MobedKinematics {

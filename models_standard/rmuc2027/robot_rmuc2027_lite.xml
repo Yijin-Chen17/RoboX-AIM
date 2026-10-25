@@ -1,0 +1,214 @@
+<mujoco model="robox_v2_rmuc2027">
+  <compiler angle="radian" eulerseq="xyz" meshdir="meshes_lite" autolimits="true" balanceinertia="true" boundinertia="1e-8" />
+
+  <default>
+    <joint armature="0.1" damping="1.0" />
+  </default>
+
+  <visual>
+    <headlight ambient="0.15 0.15 0.15" diffuse="0.0 0.0 0.0" specular="0.0 0.0 0.0" />
+    <quality shadowsize="1024" />
+    <global offwidth="1920" offheight="1080" />
+    <map shadowclip="0.5" shadowscale="0.8" />
+  </visual>
+
+  <!-- Robot Visual OBJ Meshes (Resolved relative to meshdir="meshes_lite") -->
+  <asset>
+    <mesh name="part_01" file="../../robox_v2/meshes/part_01.obj" />
+    <mesh name="part_02" file="../../robox_v2/meshes/part_02.obj" />
+    <mesh name="part_03" file="../../robox_v2/meshes/part_03.obj" />
+    <mesh name="part_04" file="../../robox_v2/meshes/part_04.obj" />
+    <mesh name="part_05" file="../../robox_v2/meshes/part_05.obj" />
+    <mesh name="part_06" file="../../robox_v2/meshes/part_06.obj" />
+    <mesh name="part_07" file="../../robox_v2/meshes/part_07.obj" />
+    <mesh name="part_08" file="../../robox_v2/meshes/part_08.obj" />
+    <mesh name="part_09" file="../../robox_v2/meshes/part_09.obj" />
+    <mesh name="part_10" file="../../robox_v2/meshes/part_10.obj" />
+    <mesh name="part_11" file="../../robox_v2/meshes/part_11.obj" />
+    <mesh name="part_12" file="../../robox_v2/meshes/part_12.obj" />
+    <mesh name="part_13" file="../../robox_v2/meshes/part_13.obj" />
+  </asset>
+
+  <worldbody>
+    <!-- Robot Chassis & Suspensions: Defined first so root joint is Joint 0 -->
+    <!-- Spawn at Red Base: X=10.0m, Y=1.62m, Z=-1.412m (Floor surface is at Z=-1.64m) -->
+    <body name="chassis" pos="10.0 1.62 -1.412">
+      <freejoint name="root" />
+      <inertial pos="0.008 0.0 0.015" mass="16.598" quat="1 0 0 0" diaginertia="0.230 0.230 0.440" />
+
+      <camera name="track_cam" mode="trackcom" pos="-1.5 0 0.8" xyaxes="0 -1 0 0.8 0 1.5" />
+      <camera name="side_cam" mode="trackcom" pos="-1.3 -1.1 0.7" xyaxes="0.65 -0.76 0 0.38 0.33 0.87" />
+
+      <!-- Visual Chassis Mesh -->
+      <geom name="chassis_mesh" type="mesh" mesh="part_01" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+
+      <!-- Chassis Main Deck Collision (Coincides exactly with CAD 480x480x35mm plate, X in [-0.238, 0.238], Y in [-0.238, 0.238]) -->
+      <geom name="chassis_deck_col" type="box" size="0.238 0.238 0.0175" pos="0 0 0.0175"
+            contype="1" conaffinity="1" priority="1" friction="0.05 0.001 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+      <!-- Two Underbody Slider Rods Collision (X in [-0.130, 0.375], Y = +-0.0776, Z in [-0.0275, 0.000]) -->
+      <geom name="chassis_bottom_rod_L" type="box" size="0.2525 0.0055 0.01375" pos="0.1225 0.0776 -0.01375"
+            contype="1" conaffinity="1" priority="2" friction="0.05 0.001 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+      <geom name="chassis_bottom_rod_R" type="box" size="0.2525 0.0055 0.01375" pos="0.1225 -0.0776 -0.01375"
+            contype="1" conaffinity="1" priority="2" friction="0.05 0.001 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+      <!-- ======================================================== -->
+      <!-- FRONT-LEFT (LF) LEG MODULE                               -->
+      <!-- ======================================================== -->
+      <body name="Steering_joint_LF" pos="0.222574 0.222574 0">
+        <joint name="Steering_joint_LF" type="hinge" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-10 10" actuatorfrclimited="true" />
+        <inertial pos="-2.852e-09 3.920e-07 -0.0391" mass="1.537" diaginertia="0.008 0.008 0.004" />
+        <geom name="Steering_joint_LF_mesh" pos="-0.222574 -0.222574 0" type="mesh" mesh="part_08" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+        <geom name="steer_col_LF" type="cylinder" size="0.027 0.035" pos="0 0 -0.035" contype="1" conaffinity="1" friction="0.3 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+        <body name="Posture_control_joint_LF" pos="0 0.02295 -0.0555">
+          <joint name="Posture_control_joint_LF" type="hinge" pos="0 0 0" axis="0 -1 0" actuatorfrcrange="-12 12" actuatorfrclimited="true" />
+          <inertial pos="0 0.00625 0.059" mass="1.062" diaginertia="0.003 0.002 0.002" />
+          <geom name="Posture_control_joint_LF_mesh" pos="-0.222574 -0.245524 0.0555" type="mesh" mesh="part_09" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+          <geom name="ecc_arm_col_LF" type="capsule" fromto="0 0 0 0 0.0125 0.072" size="0.022" contype="1" conaffinity="1" friction="0.2 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+          <body name="Wheel_joint_LF" pos="0 0.0125 0.072">
+            <joint name="Wheel_joint_LF" type="hinge" pos="0 0 0" axis="0 -1 0" damping="0.005" actuatorfrcrange="-3 3" actuatorfrclimited="true" />
+            <inertial pos="0 0.018 0" mass="0.7515" diaginertia="0.0025 0.004 0.0025" />
+            <geom name="Wheel_joint_LF_mesh" pos="-0.222574 -0.258024 -0.0165" type="mesh" mesh="part_10" contype="0" conaffinity="0" group="1" rgba="0.25 0.25 0.25 1" density="0" />
+            <geom name="wheel_col_LF" type="cylinder" size="0.100 0.018" pos="0 0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+          </body>
+        </body>
+      </body>
+
+      <!-- ======================================================== -->
+      <!-- FRONT-RIGHT (RF) LEG MODULE                              -->
+      <!-- ======================================================== -->
+      <body name="Steering_joint_RF" pos="0.222574 -0.222574 0">
+        <joint name="Steering_joint_RF" type="hinge" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-10 10" actuatorfrclimited="true" />
+        <inertial pos="-1.135e-08 -3.299e-07 -0.0391" mass="1.537" diaginertia="0.008 0.008 0.004" />
+        <geom name="Steering_joint_RF_mesh" pos="-0.222574 0.222574 0" type="mesh" mesh="part_12" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+        <geom name="steer_col_RF" type="cylinder" size="0.027 0.035" pos="0 0 -0.035" contype="1" conaffinity="1" friction="0.3 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+        <body name="Posture_control_joint_RF" pos="0 -0.02295 -0.0555">
+          <joint name="Posture_control_joint_RF" type="hinge" pos="0 0 0" axis="0 1 0" actuatorfrcrange="-12 12" actuatorfrclimited="true" />
+          <inertial pos="0 -0.00625 0.059" mass="1.062" diaginertia="0.003 0.002 0.002" />
+          <geom name="Posture_control_joint_RF_mesh" pos="-0.222574 0.245524 0.0555" type="mesh" mesh="part_13" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+          <geom name="ecc_arm_col_RF" type="capsule" fromto="0 0 0 0 -0.0125 0.072" size="0.022" contype="1" conaffinity="1" friction="0.2 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+          <body name="Wheel_joint_RF" pos="0 -0.0125 0.072">
+            <joint name="Wheel_joint_RF" type="hinge" pos="0 0 0" axis="0 1 0" damping="0.005" actuatorfrcrange="-3 3" actuatorfrclimited="true" />
+            <inertial pos="0 -0.018 0" mass="0.7515" diaginertia="0.0025 0.004 0.0025" />
+            <geom name="Wheel_joint_RF_mesh" pos="-0.222574 0.258024 -0.0165" type="mesh" mesh="part_11" contype="0" conaffinity="0" group="1" rgba="0.25 0.25 0.25 1" density="0" />
+            <geom name="wheel_col_RF" type="cylinder" size="0.100 0.018" pos="0 -0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+          </body>
+        </body>
+      </body>
+
+      <!-- ======================================================== -->
+      <!-- REAR-LEFT (LB) LEG MODULE                                -->
+      <!-- ======================================================== -->
+      <body name="Steering_joint_LB" pos="-0.222574 0.222574 0">
+        <joint name="Steering_joint_LB" type="hinge" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-10 10" actuatorfrclimited="true" />
+        <inertial pos="1.135e-08 3.299e-07 -0.0391" mass="1.537" diaginertia="0.008 0.008 0.004" />
+        <geom name="Steering_joint_LB_mesh" pos="0.222574 -0.222574 0" type="mesh" mesh="part_02" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+        <geom name="steer_col_LB" type="cylinder" size="0.027 0.035" pos="0 0 -0.035" contype="1" conaffinity="1" friction="0.3 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+        <body name="Posture_control_joint_LB" pos="0 0.02295 -0.0555">
+          <joint name="Posture_control_joint_LB" type="hinge" pos="0 0 0" axis="0 -1 0" actuatorfrcrange="-12 12" actuatorfrclimited="true" />
+          <inertial pos="0 0.00625 0.059" mass="1.062" diaginertia="0.003 0.002 0.002" />
+          <geom name="Posture_control_joint_LB_mesh" pos="0.222574 -0.245524 0.0555" type="mesh" mesh="part_03" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+          <geom name="ecc_arm_col_LB" type="capsule" fromto="0 0 0 0 0.0125 0.072" size="0.022" contype="1" conaffinity="1" friction="0.2 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+          <body name="Wheel_joint_LB" pos="0 0.0125 0.072">
+            <joint name="Wheel_joint_LB" type="hinge" pos="0 0 0" axis="0 -1 0" damping="0.005" actuatorfrcrange="-3 3" actuatorfrclimited="true" />
+            <inertial pos="0 0.018 0" mass="0.7515" diaginertia="0.0025 0.004 0.0025" />
+            <geom name="Wheel_joint_LB_mesh" pos="0.222574 -0.258024 -0.0165" type="mesh" mesh="part_04" contype="0" conaffinity="0" group="1" rgba="0.25 0.25 0.25 1" density="0" />
+            <geom name="wheel_col_LB" type="cylinder" size="0.100 0.018" pos="0 0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+          </body>
+        </body>
+      </body>
+
+      <!-- ======================================================== -->
+      <!-- REAR-RIGHT (RB) LEG MODULE                               -->
+      <!-- ======================================================== -->
+      <body name="Steering_joint_RB" pos="-0.222574 -0.222574 0">
+        <joint name="Steering_joint_RB" type="hinge" pos="0 0 0" axis="0 0 1" actuatorfrcrange="-10 10" actuatorfrclimited="true" />
+        <inertial pos="2.852e-09 -3.920e-07 -0.0391" mass="1.537" diaginertia="0.008 0.008 0.004" />
+        <geom name="Steering_joint_RB_mesh" pos="0.222574 0.222574 0" type="mesh" mesh="part_05" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+        <geom name="steer_col_RB" type="cylinder" size="0.027 0.035" pos="0 0 -0.035" contype="1" conaffinity="1" friction="0.3 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+        <body name="Posture_control_joint_RB" pos="0 -0.02295 -0.0555">
+          <joint name="Posture_control_joint_RB" type="hinge" pos="0 0 0" axis="0 1 0" actuatorfrcrange="-12 12" actuatorfrclimited="true" />
+          <inertial pos="0 -0.00625 0.059" mass="1.062" diaginertia="0.003 0.002 0.002" />
+          <geom name="Posture_control_joint_RB_mesh" pos="0.222574 0.245524 0.0555" type="mesh" mesh="part_06" contype="0" conaffinity="0" group="1" rgba="0.75 0.75 0.75 1" density="0" />
+          <geom name="ecc_arm_col_RB" type="capsule" fromto="0 0 0 0 -0.0125 0.072" size="0.022" contype="1" conaffinity="1" friction="0.2 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+
+          <body name="Wheel_joint_RB" pos="0 -0.0125 0.072">
+            <joint name="Wheel_joint_RB" type="hinge" pos="0 0 0" axis="0 1 0" damping="0.005" actuatorfrcrange="-3 3" actuatorfrclimited="true" />
+            <inertial pos="0 -0.018 0" mass="0.7515" diaginertia="0.0025 0.004 0.0025" />
+            <geom name="Wheel_joint_RB_mesh" pos="0.222574 0.258024 -0.0165" type="mesh" mesh="part_07" contype="0" conaffinity="0" group="1" rgba="0.25 0.25 0.25 1" density="0" />
+            <geom name="wheel_col_RB" type="cylinder" size="0.100 0.018" pos="0 -0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <!-- Include Full RMUC 2027 Arena Worldbody Elements -->
+  <include file="rmuc2027_arena_lite.xml" />
+
+  <!-- Standardized Test Spawn Locations (Keyframes) -->
+  <keyframe>
+    <!-- Default / Red Base Spawn (Facing center +X) -->
+    <key name="home" qpos="10.0 1.62 -1.412 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
+    <key name="home_red" qpos="10.0 1.62 -1.412 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
+    <!-- Blue Base Spawn (Facing center -X) -->
+    <key name="home_blue" qpos="-10.0 1.62 -1.412 0 0 0 1 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
+    <!-- Center Platform Test Location -->
+    <key name="test_center" qpos="4.0 1.62 -1.038 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
+    <!-- Central Platform Top Level -->
+    <key name="test_platform_top" qpos="0.0 2.42 -0.748 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
+  </keyframe>
+
+  <!-- Actuators: Migrated and Calibrated for ROBOX V2 (30.00 kg) -->
+  <actuator>
+    <position name="act_steer_FL" joint="Steering_joint_LF" kp="300" kv="30" forcelimited="true" forcerange="-10 10" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
+    <position name="act_steer_FR" joint="Steering_joint_RF" kp="300" kv="30" forcelimited="true" forcerange="-10 10" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
+    <position name="act_steer_RL" joint="Steering_joint_LB" kp="300" kv="30" forcelimited="true" forcerange="-10 10" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
+    <position name="act_steer_RR" joint="Steering_joint_RB" kp="300" kv="30" forcelimited="true" forcerange="-10 10" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
+
+    <position name="act_ecc_FL" joint="Posture_control_joint_LF" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
+    <position name="act_ecc_FR" joint="Posture_control_joint_RF" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
+    <position name="act_ecc_RL" joint="Posture_control_joint_LB" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
+    <position name="act_ecc_RR" joint="Posture_control_joint_RB" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
+
+    <velocity name="act_wheel_FL" joint="Wheel_joint_LF" kv="10" forcelimited="true" forcerange="-3 3" ctrllimited="true" ctrlrange="-50 50" />
+    <velocity name="act_wheel_FR" joint="Wheel_joint_RF" kv="10" forcelimited="true" forcerange="-3 3" ctrllimited="true" ctrlrange="-50 50" />
+    <velocity name="act_wheel_RL" joint="Wheel_joint_LB" kv="10" forcelimited="true" forcerange="-3 3" ctrllimited="true" ctrlrange="-50 50" />
+    <velocity name="act_wheel_RR" joint="Wheel_joint_RB" kv="10" forcelimited="true" forcerange="-3 3" ctrllimited="true" ctrlrange="-50 50" />
+  </actuator>
+
+  <!-- Collision Excludes -->
+  <contact>
+    <exclude body1="chassis" body2="Steering_joint_LF" />
+    <exclude body1="chassis" body2="Steering_joint_RF" />
+    <exclude body1="chassis" body2="Steering_joint_LB" />
+    <exclude body1="chassis" body2="Steering_joint_RB" />
+    <exclude body1="chassis" body2="Posture_control_joint_LF" />
+    <exclude body1="chassis" body2="Posture_control_joint_RF" />
+    <exclude body1="chassis" body2="Posture_control_joint_LB" />
+    <exclude body1="chassis" body2="Posture_control_joint_RB" />
+    <exclude body1="chassis" body2="Wheel_joint_LF" />
+    <exclude body1="chassis" body2="Wheel_joint_RF" />
+    <exclude body1="chassis" body2="Wheel_joint_LB" />
+    <exclude body1="chassis" body2="Wheel_joint_RB" />
+    <exclude body1="Steering_joint_LF" body2="Wheel_joint_LF" />
+    <exclude body1="Steering_joint_RF" body2="Wheel_joint_RF" />
+    <exclude body1="Steering_joint_LB" body2="Wheel_joint_LB" />
+    <exclude body1="Steering_joint_RB" body2="Wheel_joint_RB" />
+    <exclude body1="Steering_joint_LF" body2="Posture_control_joint_LF" />
+    <exclude body1="Steering_joint_RF" body2="Posture_control_joint_RF" />
+    <exclude body1="Steering_joint_LB" body2="Posture_control_joint_LB" />
+    <exclude body1="Steering_joint_RB" body2="Posture_control_joint_RB" />
+    <exclude body1="Posture_control_joint_LF" body2="Wheel_joint_LF" />
+    <exclude body1="Posture_control_joint_RF" body2="Wheel_joint_RF" />
+    <exclude body1="Posture_control_joint_LB" body2="Wheel_joint_LB" />
+    <exclude body1="Posture_control_joint_RB" body2="Wheel_joint_RB" />
+  </contact>
+</mujoco>
