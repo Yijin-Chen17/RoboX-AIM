@@ -758,7 +758,8 @@ private:
                     if (i == FL || i == FR) {
                         wheel_effort += 1.5 * wheel_signs_[i];
                     }
-                } else if (state == tasks::ClimbState::REAR_WALL_CLIMB) {
+                } else if (state == tasks::ClimbState::REAR_BELLY_REST ||
+                           state == tasks::ClimbState::REAR_WALL_CLIMB) {
                     if (i == FL || i == FR) {
                         wheel_effort += 2.0 * wheel_signs_[i];
                     }

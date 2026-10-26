@@ -312,8 +312,8 @@ void TaskController::updateStair200mm(
 
             double duration = params_.front_climb_max_time;
             Eigen::Vector4d target = Eigen::Vector4d::Zero();
-            target(FL) = -M_PI;
-            target(FR) = -M_PI;
+            target(FL) = params_.front_landing_angle;
+            target(FR) = params_.front_landing_angle;
 
             // Rear legs held vertical (0.0 rad) providing solid thrust along the ground
             target(RL) = 0.0;
@@ -324,7 +324,13 @@ void TaskController::updateStair200mm(
             // prevents a command step without turning the maneuver into a
             // slow quasi-static climb.
             double v_crawl = 0.50;
-            setWheelSpeedCommand(v_crawl, dt);
+            // Keep the rear axle actively pushing the chassis into the curb
+            // while the front eccentrics climb.  A single common speed lets
+            // the rear wheels be driven backwards by the curb reaction once
+            // the front axle starts to rise.
+            Eigen::Vector4d front_climb_drive;
+            front_climb_drive << v_crawl, v_crawl, 1.00, 1.00;
+            setWheelSpeedCommand(front_climb_drive, dt);
             forward_vel_override_ = v_crawl;
 
             // A kinematic height estimate alone is not enough: the front
@@ -338,17 +344,17 @@ void TaskController::updateStair200mm(
             // becomes mechanically blocked.
             const auto front_half_turn_reached = [&]() {
                 const double fl_error = std::abs(std::atan2(
-                    std::sin(current_ecc_angles(FL) + M_PI),
-                    std::cos(current_ecc_angles(FL) + M_PI)));
+                    std::sin(current_ecc_angles(FL) - params_.front_landing_angle),
+                    std::cos(current_ecc_angles(FL) - params_.front_landing_angle)));
                 const double fr_error = std::abs(std::atan2(
-                    std::sin(current_ecc_angles(FR) + M_PI),
-                    std::cos(current_ecc_angles(FR) + M_PI)));
+                    std::sin(current_ecc_angles(FR) - params_.front_landing_angle),
+                    std::cos(current_ecc_angles(FR) - params_.front_landing_angle)));
                 return fl_error < 0.18 && fr_error < 0.18;
             };
             const bool front_crest =
                 front_half_turn_reached() &&
-                (geometry.front_edge_crested || geometry.delta_height > 0.05) &&
-                std::abs(geometry.nose_up_pitch_rate) < 0.30;
+                (geometry.front_platform_contact || geometry.front_edge_crested) &&
+                std::abs(geometry.nose_up_pitch_rate) < 0.45;
             if (state_timer_ >= params_.front_climb_min_time &&
                 confirmCondition(front_crest, dt, params_.climb_confirm_time)) {
                 travel_distance_ = 0.0;
@@ -371,8 +377,11 @@ void TaskController::updateStair200mm(
             double duration = params_.straddle_max_time;
             // Front legs hold upright highest joint stance (-pi rad)
             Eigen::Vector4d target = Eigen::Vector4d::Constant(0.0);
-            target(FL) = -M_PI;
-            target(FR) = -M_PI;
+            // Hold the overshoot briefly, then reverse 90 degrees back to
+            // the normal -pi support angle before lifting the rear axle.
+            const bool front_return_started = state_timer_ >= 0.35;
+            target(FL) = front_return_started ? -M_PI : params_.front_landing_angle;
+            target(FR) = front_return_started ? -M_PI : params_.front_landing_angle;
 
             // Rear legs held vertical on ground (0.0 rad)
             target(RL) = 0.0;
@@ -383,38 +392,43 @@ void TaskController::updateStair200mm(
             // phase and must keep pushing while the front axle is supported;
             // 0.60 m/s was insufficient to move the chassis to the required
             // pre-lift position on the 200 mm curb.
-            double v_pull = 0.85;
-            setWheelSpeedCommand(v_pull, dt);
+            // Manual test: use the maximum allowed wheel linear speed while
+            // the front axle is on the plateau and the rear axle is not yet
+            // lifted.
+            double v_pull = 1.50;
+            // Keep both rear wheels positively driven during the forward
+            // slide.  The rear axle is still on the lower floor here and
+            // must not be allowed to roll backward under the front-axle
+            // support reaction.
+            Eigen::Vector4d straddle_drive;
+            straddle_drive << v_pull, v_pull, 1.00, 1.00;
+            setWheelSpeedCommand(straddle_drive, dt);
             forward_vel_override_ = v_pull;
 
             const auto front_half_turn_reached = [&]() {
                 const double fl_error = std::abs(std::atan2(
-                    std::sin(current_ecc_angles(FL) + M_PI),
-                    std::cos(current_ecc_angles(FL) + M_PI)));
+                    std::sin(current_ecc_angles(FL) - params_.front_landing_angle),
+                    std::cos(current_ecc_angles(FL) - params_.front_landing_angle)));
                 const double fr_error = std::abs(std::atan2(
-                    std::sin(current_ecc_angles(FR) + M_PI),
-                    std::cos(current_ecc_angles(FR) + M_PI)));
+                    std::sin(current_ecc_angles(FR) - params_.front_landing_angle),
+                    std::cos(current_ecc_angles(FR) - params_.front_landing_angle)));
                 return fl_error < 0.18 && fr_error < 0.18;
             };
             // Entry into REAR_BELLY_REST already means the front axle has
             // completed its support transition.  Do not re-evaluate it from
             // front/rear height difference while the rear legs are moving:
             // the rear lift itself necessarily changes delta_height.
+            // Reaching -pi is only an actuator-angle condition.  It does not
+            // prove that the front wheels are on the plateau; accepting it
+            // here lets the front support reaction drag the rear axle
+            // backward at the curb.
             const bool front_support = geometry.front_platform_contact ||
-                                       geometry.front_edge_crested ||
-                                       front_half_turn_reached();
-            // A blocked rear axle is only meaningful after the chassis has
-            // already made a real forward slide.  This prevents an impact at
-            // the curb from immediately starting the rear lift, while still
-            // allowing the lift to begin when the rear wheel reaches the lip
-            // and stops the body before the full nominal distance is reached.
-            const bool rear_edge_reached =
-                state_timer_ >= 0.30 &&
-                (body_vx < 0.08 || geometry.rear_slip_ratio > 0.65);
+                                       geometry.front_edge_crested;
+            // Start the rear lift 0.15 s after the front axle is confirmed
+            // supported, as a manual timing test.
             const bool straddled = front_support &&
-                                   ((travel_distance_ >= params_.rear_lift_trigger_distance) ||
-                                    (rear_edge_reached && state_timer_ >= 0.45)) &&
-                                   std::abs(geometry.nose_up_pitch_rate) < 0.20;
+                                   state_timer_ >= 0.15 &&
+                                   std::abs(geometry.nose_up_pitch_rate) < 0.45;
             if (state_timer_ >= params_.straddle_min_time &&
                 confirmCondition(straddled, dt, params_.climb_confirm_time)) {
                 travel_distance_ = 0.0;
@@ -438,22 +452,27 @@ void TaskController::updateStair200mm(
             // Keep the front axle at its current -pi support angle while the
             // rear axle performs its 0 -> -pi flip.
             Eigen::Vector4d target = Eigen::Vector4d::Constant(-M_PI);
+            // Hold the front eccentrics at the extra 90-degree climbing
+            // angle while the rear axle is being lifted.
+            target(FL) = -M_PI;
+            target(FR) = -M_PI;
             target(RR) = params_.rear_landing_angle;
             target(RL) = params_.rear_landing_angle;
             ecc_overrides_ = slewEccAngles(current_ecc_angles, target, dt);
 
-            // Both axles maintain forward traction throughout the diagnostic
-            // 45-degree overshoot test.
-            setWheelSpeedCommand(1.00, dt);
-            forward_vel_override_ = 1.00;
+            // Manual test: keep maximum forward speed on both axles during
+            // the rear lift, so the rear wheels receive a corresponding
+            // velocity command while the front axle keeps pulling.
+            setWheelSpeedCommand(1.50, dt);
+            forward_vel_override_ = 1.50;
 
             const auto front_half_turn_reached = [&]() {
                 const double fl_error = std::abs(std::atan2(
-                    std::sin(current_ecc_angles(FL) + M_PI),
-                    std::cos(current_ecc_angles(FL) + M_PI)));
+                    std::sin(current_ecc_angles(FL) - params_.front_landing_angle),
+                    std::cos(current_ecc_angles(FL) - params_.front_landing_angle)));
                 const double fr_error = std::abs(std::atan2(
-                    std::sin(current_ecc_angles(FR) + M_PI),
-                    std::cos(current_ecc_angles(FR) + M_PI)));
+                    std::sin(current_ecc_angles(FR) - params_.front_landing_angle),
+                    std::cos(current_ecc_angles(FR) - params_.front_landing_angle)));
                 return fl_error < 0.18 && fr_error < 0.18;
             };
             // The front support is latched by entering this phase.  Rear-leg
@@ -493,14 +512,20 @@ void TaskController::updateStair200mm(
             double duration = params_.rear_vault_max_time;
 
             Eigen::Vector4d target = Eigen::Vector4d::Constant(-M_PI);
+            // Keep the front eccentrics at the extra 90-degree climbing
+            // angle until the rear axle has actually landed.
+            // Front axle has already returned to -pi in STRADDLE_LEVELING;
+            // keep it there while the rear axle finishes climbing.
+            target(FL) = -M_PI;
+            target(FR) = -M_PI;
             target(RL) = params_.rear_landing_angle;
             target(RR) = params_.rear_landing_angle;
             ecc_overrides_ = slewEccAngles(current_ecc_angles, target, dt);
 
-            // Keep both axles driving forward while the rear eccentric arms
-            // complete the extra 45-degree landing rotation.
-            setWheelSpeedCommand(1.00, dt);
-            forward_vel_override_ = 1.00;
+            // Keep maximum forward speed on the front axle and give the
+            // rear axle the same speed command while it clears the curb.
+            setWheelSpeedCommand(1.50, dt);
+            forward_vel_override_ = 1.50;
 
             const bool rear_support = geometry.rear_platform_contact ||
                                       (geometry.rear_edge_crested &&
@@ -554,8 +579,11 @@ void TaskController::updateStair200mm(
             wheel_override_mask_.fill(true);
 
             double duration = params_.post_reset_max_time;
-            // Hold the 180-degree highest stance reached during the climb.
+            // Return the front eccentrics by 90 degrees to the normal -pi
+            // stance after the rear axle has landed.
             Eigen::Vector4d target = Eigen::Vector4d::Constant(-M_PI);
+            target(FL) = -M_PI;
+            target(FR) = -M_PI;
             target(RL) = params_.rear_landing_angle;
             target(RR) = params_.rear_landing_angle;
             ecc_overrides_ = slewEccAngles(current_ecc_angles, target, dt);

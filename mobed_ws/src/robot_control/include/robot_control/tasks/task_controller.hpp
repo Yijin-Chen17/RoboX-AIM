@@ -108,7 +108,10 @@ struct TaskControllerParams {
     double front_climb_max_time = 1.80;
     // The front axle must slide onto the plateau before the rear axle is
     // lifted; a blocked-body shortcut is intentionally not used here.
-    double straddle_min_time = 0.30;
+    // With the eccentric rate limited to 36 rpm, allow the front axle time
+    // to establish stable platform support before accepting a rear hit.
+    // Manual test: delay rear lift by 0.15 s after front support confirmation.
+    double straddle_min_time = 0.15;
     double straddle_max_time = 1.60;
     double rear_lift_min_time = 0.20;
     double rear_lift_max_time = 1.80;
@@ -116,7 +119,14 @@ struct TaskControllerParams {
     // Diagnostic rear landing angle: one additional 45-degree rotation past
     // -pi, used to test whether the rear eccentric wheel can step onto the
     // plateau.  Front legs remain at exactly -pi.
-    double rear_landing_angle = -3.9269908169872414; // -pi - pi/4
+    double rear_landing_angle = -3.4033920413889427; // -pi - 15 deg
+    // Front eccentric landing angle.  A value exactly at -pi is a dead point:
+    // the wheel sits directly under the joint, so the step reaction has zero
+    // moment arm and cannot lift the chassis.  Rotating slightly past -pi
+    // gives the arm a usable moment arm for a quasi-static (<=36 rpm) climb.
+    // Manual test: rotate the front eccentrics an additional 90 degrees
+    // past -pi while climbing, then return them to -pi after touchdown.
+    double front_landing_angle = -4.712388980384690;
     double rear_vault_min_time = 0.25;
     double rear_vault_max_time = 3.00;
     double post_reset_min_time = 0.25;
@@ -126,7 +136,9 @@ struct TaskControllerParams {
     double climb_max_pitch = 0.75;       // rad, hard safety limit
     double climb_max_roll = 0.55;        // rad, hard safety limit
     double climb_max_slip_ratio = 0.97;
-    double climb_ecc_rate = 8.0;         // rad/s, FSM position slew limit
+    // Posture (eccentric) joint rated speed is 36 rpm = 3.77 rad/s.  The FSM
+    // command slew must stay below that, with margin for tracking error.
+    double climb_ecc_rate = 3.5;         // rad/s = 33.4 rpm, FSM position slew limit
     double climb_wheel_accel = 8.0;      // m/s^2, wheel linear speed slew limit
 };
 
