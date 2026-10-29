@@ -130,9 +130,9 @@ void ClimbGeometryEstimator::update(
     geometry_.com_support_margin = -rear_contact_body.x();
 
     // 5. Front wall climbing detection:
-    // When front wheels are climbing vertical face, nose pitches up sharply with positive wheel height delta
-    geometry_.front_wall_climbing = (geometry_.delta_height > 0.030 &&
-                                     geometry_.nose_up_pitch > 0.050 &&
+    // When front wheels are climbing vertical face of 200mm curb, nose pitches up sharply with significant wheel height delta
+    geometry_.front_wall_climbing = (geometry_.delta_height > 0.070 &&
+                                     geometry_.nose_up_pitch > 0.120 &&
                                      geometry_.nose_up_pitch_rate > 0.10);
 
     // 6. Autonomous Tri-Feature Edge Cresting Observer & Height Auto-Latch

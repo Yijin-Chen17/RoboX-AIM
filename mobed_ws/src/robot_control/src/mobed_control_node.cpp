@@ -506,10 +506,13 @@ private:
         double chassis_forward_vel = v_body.x();
 
         double imu_accel_x = imu_received_ ? latest_imu_.linear_acceleration.x() : 0.0;
+        double imu_pitch_rate = imu_received_ ? latest_imu_.angular_velocity.y() : 0.0;
         contact_detector_->update(
             curr_ecc_efforts_, curr_wheel_efforts_, curr_wheel_velocities_,
             chassis_forward_vel, active_cmd_vel.x(), imu_accel_x,
-            climb_geometry_estimator_->getGeometry(), dt);
+            climb_geometry_estimator_->getGeometry(), dt,
+            active_cmd_vel.y(), active_cmd_vel.z(),
+            imu_pitch_rate);
 
         // ============================================================
         // Phase 4: FSM Task Controller (climbing state machine)
@@ -522,8 +525,14 @@ private:
                 contact_detector_->reset();
             }
 
+            bool was_active = task_controller_->isActive();
             task_controller_->update(
                 *contact_detector_, geom, curr_ecc_angles_, curr_ecc_efforts_, dt, chassis_forward_vel, cmd_vel_(0));
+            bool is_active = task_controller_->isActive();
+            if (was_active && !is_active) {
+                climb_geometry_estimator_->reset();
+                contact_detector_->reset();
+            }
         }
 
         // Log FSM state transitions with override mask info
@@ -731,7 +740,9 @@ private:
                               ? 0.0
                               : balance_out.ecc_torques(i) * ecc_signs_[i] * ff_weight;
 
-            effort_cmd = std::clamp(effort_cmd, -12.0, 12.0);
+             // DM-J4340P rated continuous torque; 40 Nm peak is not a
+             // permissible sustained position-control limit.
+             effort_cmd = std::clamp(effort_cmd, -12.0, 12.0);
             cmd_msg.effort.push_back(effort_cmd);
 
             // Wheels: math → CAD
@@ -751,7 +762,7 @@ private:
             }
             cmd_msg.velocity.push_back(target_wheel_vel * wheel_signs_[i]);
             double wheel_effort = driving_controller_->getWheelTorques()(i) * wheel_signs_[i];
-            // Traction torque injection during climbing phases (strictly bounded within realistic ±3.0 Nm limit):
+            // Traction torque injection during climbing phases (final wheel limit: 2.2 Nm):
             if (task_controller_->isActive()) {
                 auto state = task_controller_->getState();
                 if (state == tasks::ClimbState::FRONT_WALL_CLIMB || state == tasks::ClimbState::STRADDLE_LEVELING) {
@@ -785,7 +796,7 @@ private:
                     }
                 }
             }
-            wheel_effort = std::clamp(wheel_effort, -3.0, 3.0);
+            wheel_effort = std::clamp(wheel_effort, -2.2, 2.2);
             cmd_msg.effort.push_back(wheel_effort);
         }
 

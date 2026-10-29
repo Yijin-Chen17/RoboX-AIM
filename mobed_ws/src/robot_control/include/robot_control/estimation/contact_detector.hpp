@@ -28,7 +28,10 @@ public:
                 double cmd_forward_vel,
                 double imu_accel_x,
                 const ClimbGeometry& geometry,
-                double dt);
+                double dt,
+                double cmd_lateral_vel = 0.0,
+                double cmd_yaw_rate = 0.0,
+                double imu_gyro_y = 0.0);
 
     void update(const Eigen::Vector4d& ecc_efforts,
                 const Eigen::Vector4d& wheel_efforts,
@@ -113,6 +116,16 @@ public:
     Eigen::Vector4d getDeltaTauEcc() const { return delta_tau_ecc_; }
 
     /**
+     * @brief Scheme 1: Get chassis pitch angular acceleration (rad/s^2).
+     */
+    double getPitchAccel() const { return pitch_accel_; }
+
+    /**
+     * @brief Scheme 1: Get longitudinal acceleration jerk (m/s^3).
+     */
+    double getAccelJerkX() const { return accel_jerk_x_; }
+
+    /**
      * @brief Reset all detection state and history buffers.
      */
     void reset();
@@ -157,6 +170,13 @@ private:
     std::array<double, NUM_LEGS> shock_window_timer_;
     std::array<double, NUM_LEGS> sustain_timer_;
     double startup_timer_ = 0.0;
+
+    // Scheme 1: Kinematic IMU shock & jerk derivatives
+    double prev_imu_gyro_y_ = 0.0;
+    double prev_imu_accel_x_ = 0.0;
+    double prev_chassis_vel_ = 0.0;
+    double pitch_accel_ = 0.0;
+    double accel_jerk_x_ = 0.0;
 
     // Sliding window history for torque derivative computation
     static constexpr int WINDOW_SIZE = 5;

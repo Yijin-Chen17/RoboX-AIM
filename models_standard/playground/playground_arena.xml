@@ -67,11 +67,16 @@
     <geom name="z2_curb_10cm_ramp" type="box" size="0.45 0.5 0.015" pos="0.0 5.5 0.05" euler="-0.0997 0 0"
           rgba="0.4 0.5 0.75 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
 
-    <!-- Lane 2C: 20cm (0.20m) 单级高难度垂直台阶 (X = 1.2m, Y in [3.0, 5.0]) -->
-    <geom name="z2_curb_20cm" type="box" size="0.45 1.0 0.1" pos="1.2 4.0 0.1"
+    <!-- Lane 2C: two 200mm steps, each with a 700mm platform
+         (X = 1.2m, approach direction +Y) -->
+    <!-- First 200mm step: platform Y in [3.0, 3.7] -->
+    <geom name="z2_curb_2step_lower" type="box" size="0.45 0.35 0.10" pos="1.2 3.35 0.10"
           rgba="0.25 0.35 0.6 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
-    <!-- 20cm 后方缓坡下台阶 (h=0.20m, length=1.0m, slope=11.31°) -->
-    <geom name="z2_curb_20cm_ramp" type="box" size="0.45 0.5 0.015" pos="1.2 5.5 0.1" euler="-0.1974 0 0"
+    <!-- Second 200mm step: platform Y in [3.7, 4.4], total height 400mm -->
+    <geom name="z2_curb_2step_upper" type="box" size="0.45 0.35 0.20" pos="1.2 4.05 0.20"
+          rgba="0.25 0.35 0.6 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+    <!-- 400mm rear descent ramp after the two 700mm platforms -->
+    <geom name="z2_curb_2step_ramp" type="box" size="0.45 0.5 0.015" pos="1.2 4.9 0.2" euler="-0.3805 0 0"
           rgba="0.3 0.4 0.65 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
 
     <!-- =================================================================== -->

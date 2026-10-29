@@ -301,23 +301,47 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     }
 
     // ============================================================
-    // 5. Slew Rate Limiting (Speed/Accel & Steering velocity)
+    // 5. Active Steering Assist Kinematics & Slew Rate Limiting
+    // Offset wheel scrub compensation: when steering rotates at rate dot_theta,
+    // the wheel contact patch at lateral scrub offset y_offset swings along an arc.
+    // Adding v_roll_comp = - y_offset * dot_theta transforms sliding scrub friction
+    // into pure rolling, while providing up to 1.18 Nm of mechanical steering assist torque.
     // ============================================================
     Eigen::Vector4d final_steer = prev_steer_angles_;
     Eigen::Vector4d final_speed = prev_wheel_speeds_;
 
+    const std::array<double, 4> y_offsets = {
+        params_.wheel_scrub_offset_y,   // FL: +0.05345 m (left of steering axis)
+       -params_.wheel_scrub_offset_y,   // FR: -0.05345 m (right of steering axis)
+        params_.wheel_scrub_offset_y,   // RL: +0.05345 m (left of steering axis)
+       -params_.wheel_scrub_offset_y    // RR: -0.05345 m (right of steering axis)
+    };
+
+    double r_w = kinematics_->getParams().r_wheel;
+    if (r_w < 1e-4) r_w = 0.10;
+
     for (int i = 0; i < 4; ++i) {
-        double target_speed = opt_speed(i) * coherent_drive_scale;
+        // Rate Limiting (Steering) with continuous forbidden sector avoidance
+        double max_steer_delta = params_.max_steer_vel * dt;
+        final_steer(i) = enforceForbiddenSectorTransit(
+            i, prev_steer_angles_(i), opt_steer(i), max_steer_delta);
+
+        // Steering rotation velocity and tracking error
+        double steer_cmd_rate = (final_steer(i) - prev_steer_angles_(i)) / std::max(dt, 1e-4);
+        double steer_track_err = kinematics_->normalize_angle(final_steer(i) - current_steer_angles(i));
+        double effective_steer_rate = steer_cmd_rate + params_.steer_assist_kp * steer_track_err;
+        effective_steer_rate = std::clamp(effective_steer_rate, -params_.max_steer_vel, params_.max_steer_vel);
+
+        // Wheel scrub compensation velocity (rad/s): omega = - (y_offset / r_wheel) * effective_steer_rate
+        double omega_steer_assist = - (y_offsets[i] / r_w) * effective_steer_rate;
+
+        // Combine chassis-level translation with wheel steering assist
+        double target_speed = opt_speed(i) * coherent_drive_scale + omega_steer_assist;
         double speed_delta = target_speed - prev_wheel_speeds_(i);
         double max_speed_delta = params_.max_wheel_accel * dt;
         speed_delta = std::clamp(speed_delta, -max_speed_delta, max_speed_delta);
         double sat_speed = prev_wheel_speeds_(i) + speed_delta;
         final_speed(i) = std::clamp(sat_speed, -params_.max_wheel_speed, params_.max_wheel_speed);
-
-        // Rate Limiting (Steering) with continuous forbidden sector avoidance
-        double max_steer_delta = params_.max_steer_vel * dt;
-        final_steer(i) = enforceForbiddenSectorTransit(
-            i, prev_steer_angles_(i), opt_steer(i), max_steer_delta);
     }
 
     // ============================================================

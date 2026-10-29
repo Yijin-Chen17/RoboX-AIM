@@ -22,6 +22,11 @@ void ContactDetector::reset() {
     front_evidence_score_ = 0.0;
     front_evidence_sustain_timer_ = 0.0;
     prev_cmd_vel_ = 0.0;
+    prev_imu_gyro_y_ = 0.0;
+    prev_imu_accel_x_ = 0.0;
+    prev_chassis_vel_ = 0.0;
+    pitch_accel_ = 0.0;
+    accel_jerk_x_ = 0.0;
     ecc_torque_rates_ = Eigen::Vector4d::Zero();
     wheel_torque_rates_ = Eigen::Vector4d::Zero();
     prev_ecc_efforts_ = Eigen::Vector4d::Zero();
@@ -71,7 +76,10 @@ void ContactDetector::update(
     double cmd_forward_vel,
     double imu_accel_x,
     const ClimbGeometry& geometry,
-    double dt)
+    double dt,
+    double cmd_lateral_vel,
+    double cmd_yaw_rate,
+    double imu_gyro_y)
 {
     if (dt <= 0.0 || dt > 0.5) return;
 
@@ -83,6 +91,11 @@ void ContactDetector::update(
         wheel_ext_torques_.setZero();
         leg_impact_cycles_.fill(0);
         prev_cmd_vel_ = cmd_forward_vel;
+        prev_imu_gyro_y_ = imu_gyro_y;
+        prev_imu_accel_x_ = imu_accel_x;
+        prev_chassis_vel_ = chassis_forward_vel;
+        pitch_accel_ = 0.0;
+        accel_jerk_x_ = 0.0;
         ecc_effort_baseline_ = ecc_efforts;
         momentum_observer_z_ = params_.total_mass * chassis_forward_vel;
         momentum_residual_ = 0.0;
@@ -100,13 +113,19 @@ void ContactDetector::update(
     double cmd_accel = (cmd_forward_vel - prev_cmd_vel_) / dt;
     prev_cmd_vel_ = cmd_forward_vel;
 
-    // Forward command gate: only check impact when driving forward with intentional speed
-    bool forward_cmd_active = (cmd_forward_vel > 0.08);
+    // Forward command gate: require clear straight forward driving intent (>= 0.10 m/s)
+    // Suppress front collision detection when steering/rotating or strafing sideways
+    bool pure_forward_intent = (cmd_forward_vel >= 0.10) &&
+                               (std::abs(cmd_lateral_vel) < 0.08) &&
+                               (std::abs(cmd_yaw_rate) < 0.25);
+    bool forward_cmd_active = pure_forward_intent;
 
     // 1. Generalized Momentum Observer (GMO) & Per-Wheel External Torque Decoupling
     // Decouples wheel motor acceleration inertia: tau_ext = |tau_meas| - J_w * |d_omega/dt|
+    Eigen::Vector4d wheel_accels = Eigen::Vector4d::Zero();
     for (int i = 0; i < NUM_LEGS; ++i) {
         double dw = (wheel_velocities(i) - prev_wheel_velocities_(i)) / dt;
+        wheel_accels(i) = dw;
         double inertia_torque = WHEEL_INERTIA_J * std::abs(dw);
         wheel_ext_torques_(i) = std::max(0.0, std::abs(wheel_efforts(i)) - inertia_torque);
     }
@@ -119,18 +138,27 @@ void ContactDetector::update(
         startup_timer_ = 0.0;
     }
 
-    // Startup acceleration blanking window:
-    // Inhibit impact detection during initial startup from rest (first 0.35s)
-    // while transition smoother settles and robot reaches cruising speed.
-    if (startup_timer_ < 0.35) {
+    // Fast startup blanking window (only 50ms):
+    // Inhibit impact detection only during the first 50ms to allow derivative filters to initialize.
+    if (startup_timer_ < 0.05) {
         front_evidence_score_ = 0.0;
         front_evidence_sustain_timer_ = 0.0;
         impact_confirm_cycles_ = 0;
         impact_flags_.fill(false);
         prev_ecc_efforts_ = ecc_efforts;
         prev_wheel_efforts_ = wheel_efforts;
+        prev_imu_gyro_y_ = imu_gyro_y;
+        prev_imu_accel_x_ = imu_accel_x;
+        prev_chassis_vel_ = chassis_forward_vel;
         return;
     }
+
+    // Scheme 1: Kinematic IMU shock & jerk derivatives
+    pitch_accel_ = (imu_gyro_y - prev_imu_gyro_y_) / dt;
+    prev_imu_gyro_y_ = imu_gyro_y;
+
+    accel_jerk_x_ = (imu_accel_x - prev_imu_accel_x_) / dt;
+    prev_imu_accel_x_ = imu_accel_x;
 
     // Update derivatives, per-wheel torque rates, and eccentric baseline
     for (int i = 0; i < NUM_LEGS; ++i) {
@@ -162,84 +190,97 @@ void ContactDetector::update(
         momentum_residual_ = 0.0;
     }
 
-    // 1. Physical wheel stall & blocked slip checks
-    // When wheels hit a vertical wall face, actual wheel speed may drop near zero or slip on concrete
-    double stall_tau_thresh = std::min(wheel_stall_torque_min_, 0.85 * 10.0 * (cmd_forward_vel / params_.r_wheel));
-    bool fl_stalled = (std::abs(wheel_efforts(FL)) >= stall_tau_thresh) &&
-                      (std::abs(wheel_velocities(FL)) < wheel_stall_vel_max_);
-    bool fr_stalled = (std::abs(wheel_efforts(FR)) >= stall_tau_thresh) &&
-                      (std::abs(wheel_velocities(FR)) < wheel_stall_vel_max_);
-    bool front_axle_stalled = fl_stalled && fr_stalled;
-    bool single_wheel_stalled = (fl_stalled || fr_stalled) &&
-                                (0.5 * (std::abs(wheel_efforts(FL)) + std::abs(wheel_efforts(FR))) >= stall_tau_thresh);
+    // =========================================================================
+    // Scheme 1 (Refined): Stator-Decoupled & Sign-Locked Fast Collision Detector
+    // =========================================================================
 
-    // 2. Chassis halted & IMU collision shock metrics
+    // 1. Forward Acceleration & Speed Growth Veto (Hard Kinematic Gate)
+    // A physical front obstacle collision is strictly an ARREST of forward motion (deceleration).
+    // If the chassis is actively accelerating forward (a_x > 0) or speed is actively growing,
+    // the robot is driving on open ground and CANNOT be a collision.
+    double chassis_accel_kinematic = (chassis_forward_vel - prev_chassis_vel_) / dt;
+    prev_chassis_vel_ = chassis_forward_vel;
+
+    bool chassis_accelerating = (imu_accel_x > 0.15) || (chassis_accel_kinematic > 0.10);
+    bool speed_actively_growing = (chassis_forward_vel > 0.05) && (chassis_accel_kinematic > 0.05);
+    bool active_launch_or_accel = chassis_accelerating || speed_actively_growing;
+
+    // 2. Physical Deceleration / Arrest Shock
+    // Real collision produces negative deceleration shock or negative momentum residual:
+    bool decel_shock = (imu_accel_x < -0.30) || (accel_jerk_x_ < -6.0) || (momentum_residual_ < -3.5);
     bool chassis_halted = (chassis_forward_vel < 0.08);
-    bool imu_impact_shock = (imu_accel_x < imu_decel_shock_threshold_);
 
-    // 3. Wheel blocked slip against vertical obstacle face:
-    // When front tires hit a 200mm vertical wall face, both front wheels push with high drive effort (>= 2.2 Nm)
-    bool both_front_high_effort = (std::abs(wheel_efforts(FL)) >= 2.2) && (std::abs(wheel_efforts(FR)) >= 2.2);
-    // High drive effort by itself is normal during acceleration and cannot
-    // identify a wall.  Require an independent arrest/resistance signature
-    // as well; the existing torque thresholds remain unchanged.
-    bool momentum_arrested = (momentum_residual_ < -8.0);
-    bool front_arrested = chassis_halted || imu_impact_shock || momentum_arrested;
-    bool fl_slipping_blocked = front_arrested && (std::abs(wheel_efforts(FL)) >= 2.0);
-    bool fr_slipping_blocked = front_arrested && (std::abs(wheel_efforts(FR)) >= 2.0);
-    bool front_blocked_slip = fl_slipping_blocked && fr_slipping_blocked;
+    // Collision kinematics: Must be decelerating or completely stopped against an obstacle,
+    // and CANNOT be actively accelerating forward on open ground.
+    bool collision_kinematics_valid = (decel_shock || chassis_halted) && !active_launch_or_accel;
 
-    // 4. Front eccentric arm reaction torque spike & momentum observer arrest
-    bool front_ecc_spike = (std::abs(delta_tau_ecc_(FL)) > 1.8 || std::abs(delta_tau_ecc_(FR)) > 1.8) ||
-                           (std::abs(ecc_torque_rates_(FL)) > 15.0 || std::abs(ecc_torque_rates_(FR)) > 15.0);
-    
-    // 5. Multi-modal obstacle evidence calculation
-    bool front_direct_impact = forward_cmd_active &&
-                               (std::abs(wheel_efforts(FL)) >= 2.5 && std::abs(wheel_efforts(FR)) >= 2.5) &&
-                               (imu_accel_x < -3.0 || (chassis_halted && (std::abs(delta_tau_ecc_(FL)) > 2.0 || std::abs(delta_tau_ecc_(FR)) > 2.0)));
+    // 3. Structural Shock: Eccentric Joint Reaction Moment Decoupled from Drive Motor
+    // The drive motor stator is mounted on the eccentric knuckle. Drive torque directly induces
+    // an internal reaction torque ~ wheel_effort on the eccentric joint.
+    // We decouple this internal motor reaction to extract true external ground/obstacle impact:
+    double ext_ecc_fl = std::max(0.0, std::abs(delta_tau_ecc_(FL)) - 0.85 * std::abs(wheel_efforts(FL)));
+    double ext_ecc_fr = std::max(0.0, std::abs(delta_tau_ecc_(FR)) - 0.85 * std::abs(wheel_efforts(FR)));
+    double rate_ecc_fl = std::abs(ecc_torque_rates_(FL));
+    double rate_ecc_fr = std::abs(ecc_torque_rates_(FR));
 
-    // A normal bump can produce a positive nose-up signal.  Treat the
-    // geometric wall-climbing flag as impact evidence only when the body is
-    // also measurably arrested; this prevents ordinary terrain motion from
-    // entering the climb FSM.
-    bool geometric_wall_impact = geometry.front_wall_climbing &&
-                                 (chassis_halted || imu_impact_shock || momentum_arrested ||
-                                  chassis_forward_vel < 0.5 * std::max(0.08, cmd_forward_vel));
+    bool front_ecc_shock = ((ext_ecc_fl > 0.70 || ext_ecc_fr > 0.70) ||
+                            (rate_ecc_fl > 12.0 || rate_ecc_fr > 12.0)) &&
+                           collision_kinematics_valid;
 
-    double evidence_in = 0.0;
-    if (forward_cmd_active) {
-        if (geometric_wall_impact || front_direct_impact || front_blocked_slip) {
-            evidence_in = 1.0;
-            front_evidence_score_ = 1.0;
-            impact_confirm_cycles_ = std::max(impact_confirm_cycles_, 2);
-        } else if (front_blocked_slip && (front_ecc_spike || momentum_arrested || imu_impact_shock || chassis_halted)) {
-            evidence_in = 1.0;
-        } else if (front_axle_stalled && (imu_impact_shock || chassis_halted)) {
-            evidence_in = 1.0;
-        } else if (single_wheel_stalled && (imu_impact_shock || chassis_halted)) {
-            evidence_in = 0.90;
-        }
-    }
+    // 4. Inertial Shock: Deceleration Shock & Directional Pitch Diving
+    // When hitting an obstacle from the front, the chassis decelerates and dives/pitches forward.
+    // Normal acceleration squats back (pitch up). We require deceleration shock to validate pitch motion:
+    bool imu_impact_shock = decel_shock && (std::abs(pitch_accel_) > 2.0 || imu_accel_x < -0.50);
 
-    // 6. Continuous Leaky-Integrator Evidence Update with consecutive cycle counter
-    if (evidence_in > 0.5) {
+    // 5. Drive Wheel Resistance: True Obstacle Stall vs Wall-Slip (Excluding Standstill Spin-Up)
+    const double wheel_resist_thresh = 1.30;
+    bool fl_effort_high = (std::abs(wheel_efforts(FL)) >= wheel_resist_thresh);
+    bool fr_effort_high = (std::abs(wheel_efforts(FR)) >= wheel_resist_thresh);
+
+    // Exclude normal startup spin-up: if wheels are accelerating rapidly from rest, they are launching
+    bool fl_spin_up = (wheel_accels(FL) > 15.0);
+    bool fr_spin_up = (wheel_accels(FR) > 15.0);
+
+    // Case A: Wheel is physically blocked/stalled against obstacle
+    bool fl_stalled = fl_effort_high && (std::abs(wheel_velocities(FL)) < 1.0) && !fl_spin_up && collision_kinematics_valid;
+    bool fr_stalled = fr_effort_high && (std::abs(wheel_velocities(FR)) < 1.0) && !fr_spin_up && collision_kinematics_valid;
+
+    // Case B: Wheel is slipping against vertical wall face
+    bool chassis_blocked = (chassis_forward_vel < 0.15) && !active_launch_or_accel;
+    bool fl_wall_slip = fl_effort_high && chassis_blocked && (wheel_velocities(FL) * params_.r_wheel > 0.15);
+    bool fr_wall_slip = fr_effort_high && chassis_blocked && (wheel_velocities(FR) * params_.r_wheel > 0.15);
+
+    bool fl_blocked = fl_stalled || fl_wall_slip;
+    bool fr_blocked = fr_stalled || fr_wall_slip;
+    bool front_any_blocked = fl_blocked || fr_blocked;
+    bool front_both_blocked = fl_blocked && fr_blocked;
+
+    // 6. Geometric Wall Climbing (Height Delta & Nose-up Pitch)
+    bool geometric_wall_impact = geometry.front_wall_climbing && front_any_blocked;
+
+    // 7. Multi-Modal Collision Trigger Decision
+    // Condition 1: Structural strike (decoupled eccentric shock + wheel resistance)
+    bool structural_strike = front_ecc_shock && front_any_blocked;
+    // Condition 2: Inertial strike (IMU deceleration shock + wheel resistance)
+    bool inertial_strike = imu_impact_shock && front_any_blocked;
+    // Condition 3: Bilateral wheel block (both front wheels resisted/slipping with chassis halted)
+    bool dual_wheel_block = front_both_blocked && collision_kinematics_valid;
+
+    bool front_obstacle_hit = forward_cmd_active &&
+                              (structural_strike || inertial_strike || dual_wheel_block || geometric_wall_impact);
+
+    // 8. Fast 20ms Temporal Persistence Confirmation
+    // Requires 2 consecutive cycles (20 ms at 100 Hz) to eliminate single-step numerical glitches
+    if (front_obstacle_hit) {
         impact_confirm_cycles_++;
-        front_evidence_score_ = std::min(1.0, front_evidence_score_ + (evidence_in * 35.0) * dt);
-    } else {
-        impact_confirm_cycles_ = 0;
-        front_evidence_score_ = std::max(0.0, front_evidence_score_ - 20.0 * dt);
-    }
-
-    // 7. Confirmed front impact when evidence score sustains threshold (ultra-fast 6ms debounce)
-    if (front_evidence_score_ >= 0.70 && impact_confirm_cycles_ >= 2) {
-        front_evidence_sustain_timer_ += dt;
-        // Reject short normal-driving torque transients.  This changes only
-        // the temporal confirmation, not any motor-torque threshold.
-        if (front_evidence_sustain_timer_ >= 0.050) {
+        front_evidence_score_ = 1.0;
+        if (impact_confirm_cycles_ >= 2) {
             impact_flags_[FL] = true;
             impact_flags_[FR] = true;
         }
     } else {
+        impact_confirm_cycles_ = 0;
+        front_evidence_score_ = 0.0;
         front_evidence_sustain_timer_ = 0.0;
     }
 

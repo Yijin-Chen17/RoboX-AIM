@@ -102,35 +102,23 @@ struct TaskControllerParams {
     double rear_roll_speed = 2.5;
     bool active_pitch_counter_balance = true;
 
-    // Event-driven stair FSM guards.  Timers are safety bounds, not the
+    // Event-driven stair FSM guards. Timers are safety bounds, not the
     // normal transition mechanism.
-    double front_climb_min_time = 0.15;
-    double front_climb_max_time = 1.80;
-    // The front axle must slide onto the plateau before the rear axle is
-    // lifted; a blocked-body shortcut is intentionally not used here.
-    // With the eccentric rate limited to 36 rpm, allow the front axle time
-    // to establish stable platform support before accepting a rear hit.
-    // Manual test: delay rear lift by 0.15 s after front support confirmation.
-    double straddle_min_time = 0.15;
-    double straddle_max_time = 1.60;
-    double rear_lift_min_time = 0.20;
-    double rear_lift_max_time = 1.80;
-    double rear_lift_trigger_distance = 0.12; // minimum real slide before rear lift
-    // Diagnostic rear landing angle: one additional 45-degree rotation past
-    // -pi, used to test whether the rear eccentric wheel can step onto the
-    // plateau.  Front legs remain at exactly -pi.
-    double rear_landing_angle = -3.4033920413889427; // -pi - 15 deg
-    // Front eccentric landing angle.  A value exactly at -pi is a dead point:
-    // the wheel sits directly under the joint, so the step reaction has zero
-    // moment arm and cannot lift the chassis.  Rotating slightly past -pi
-    // gives the arm a usable moment arm for a quasi-static (<=36 rpm) climb.
-    // Manual test: rotate the front eccentrics an additional 90 degrees
-    // past -pi while climbing, then return them to -pi after touchdown.
-    double front_landing_angle = -4.712388980384690;
-    double rear_vault_min_time = 0.25;
-    double rear_vault_max_time = 3.00;
-    double post_reset_min_time = 0.25;
-    double post_reset_max_time = 2.00;
+    double front_climb_min_time = 0.80;
+    double front_climb_max_time = 2.00;
+    double straddle_min_time = 0.80;
+    double straddle_max_time = 2.00;
+    double rear_lift_min_time = 0.80;
+    double rear_lift_max_time = 2.00;
+    double rear_lift_trigger_distance = 0.12;
+
+    // 180-deg stair climb: eccentric arms rotate 0 -> -pi rad
+    double rear_landing_angle = -3.141592653589793;  // -pi rad
+    double front_landing_angle = -3.141592653589793 - 0.35; // -pi - 20 deg forward lean onto plateau (providing 12 Nm forward thrust)
+    double rear_vault_min_time = 0.30;
+    double rear_vault_max_time = 2.00;
+    double post_reset_min_time = 0.15;
+    double post_reset_max_time = 0.50;
 
     double climb_confirm_time = 0.10;
     double climb_max_pitch = 0.75;       // rad, hard safety limit

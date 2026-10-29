@@ -10,7 +10,7 @@ namespace robot_control {
 namespace controllers {
 
 struct DrivingControllerParams {
-    double max_wheel_accel = 10.0; // rad/s^2
+    double max_wheel_accel = 20.0; // rad/s^2
     double max_steer_vel = 5.0;    // rad/s
 
     // ---- Swerve Steering Optimization & Coherent Drive Gating ----
@@ -35,8 +35,15 @@ struct DrivingControllerParams {
     double kd_steer = 30.0;         // Nm·s/rad (steering PD derivative gain)
     double kp_wheel = 15.0;         // Nm/(rad/s) (wheel speed PI proportional gain)
     double ki_wheel = 0.5;          // Nm/rad (wheel speed PI integral gain)
-    double max_steer_torque = 10.0; // Nm (steering actuator saturation limit)
-    double max_wheel_torque = 3.0;  // Nm (driving wheel traction saturation limit)
+    double max_steer_torque = 3.5; // Nm (DM-J4310P rated torque)
+    double max_wheel_torque = 2.2;  // Nm (MS9010 v3 peak torque)
+
+    // ---- Active Steering Assist Kinematics (Offset Wheel Scrub Compensation) ----
+    // Lateral offset of wheel contact from steering axis in steering local frame (m)
+    // Left legs (FL, RL): +0.05345 m; Right legs (FR, RR): -0.05345 m
+    double wheel_scrub_offset_y = 0.05345;
+    // Steering assist proportional gain for wheel velocity feedforward (1/s)
+    double steer_assist_kp = 8.0;
 
     // ---- Velocity & Speed Saturation Limits ----
     double max_linear_vel  = 1.2;   // m/s (maximum chassis planar translation speed)

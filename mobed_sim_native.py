@@ -377,6 +377,8 @@ def main():
     print("    [Q / E]       In-place Spin CCW / CW (1.8 rad/s)")
     print("    [Space / X]   Brake / Soft Stop (Release keys to coast to stop)")
     print("    [H]           Toggle Collision Overlay (Group 3: ON / OFF)")
+    print("    [L]           Lower chassis to lowest stance (eccentric arms highest)")
+    print("    [T / G]       Power test: away / toward chassis (starts from L pose)")
     print("    [C]           Toggle Mode (Mode 1: Paper Normal <-> Mode 2: Stair 200mm)")
     print("    [1 / 2 / 0]   Direct Mode Select: [1] Paper Normal | [2] Stair 200mm | [0] Disabled")
     print("    Mouse Drag    Left: Rotate around car | Right: Pan | Scroll: Zoom")
@@ -390,6 +392,68 @@ def main():
     prev_key_2 = False
     prev_key_0 = False
     prev_key_h = False
+    prev_key_l = False
+    prev_key_t = False
+    prev_key_g = False
+
+    # ---------------------------------------------------------------
+    # Eccentric-arm power measurement test
+    # T: move all four arms 180 deg physically away from the chassis
+    # G: move all four arms 180 deg in the opposite direction
+    # The signs account for the mirrored joint axes in the MJCF model.
+    # ---------------------------------------------------------------
+    ecc_test_active = False
+    ecc_test_to_lowest = False
+    ecc_test_pending_direction = 0
+    ecc_lowest_reached = False
+    ecc_pose_hold = False
+    ecc_pose_hold_targets = np.zeros(4, dtype=np.float64)
+    ecc_test_direction = 0
+    ecc_test_elapsed = 0.0
+    ecc_test_start = np.zeros(4, dtype=np.float64)
+    ecc_lowest_targets = np.full(4, -np.pi, dtype=np.float64)
+    ecc_test_max_power = np.zeros(12, dtype=np.float64)
+    ecc_test_last_power = np.zeros(12, dtype=np.float64)
+    live_joint_power = np.zeros(12, dtype=np.float64)
+    live_electrical_power = np.zeros(12, dtype=np.float64)
+    ecc_test_max_torque = np.zeros(12, dtype=np.float64)
+    ecc_test_max_speed = np.zeros(12, dtype=np.float64)
+    # FL, FR, RL, RR: same physical radial direction from the chassis.
+    ecc_away_signs = np.array([1.0, -1.0, -1.0, 1.0], dtype=np.float64)
+    ecc_test_duration = np.pi / 3.5
+    # "Lowest" means the chassis lowest stance: the eccentric arms point
+    # upward.  In the MJCF actuator coordinates that pose is q=0.
+    ecc_lowest_angle = 0.0
+    ecc_lowest_tolerance = 0.04
+
+    # Motor electrical model from the supplied datasheets.  MuJoCo reports
+    # joint-side torque and speed, so convert through the output reduction.
+    # Electrical estimate is motor copper loss plus back-EMF power:
+    #   I = |tau_motor| / Kt
+    #   P_elec = I * (Ke*|omega_motor| + I*R_phase)
+    # Driver and gearbox efficiencies are not specified, therefore they are
+    # intentionally not invented or folded into this displayed estimate.
+    # Joint order: steering / eccentric posture / drive wheel.
+    # Motor order: DM-J4310P / DM-J4340P / MS9010 v3.
+    motor_gear = np.array([10.0] * 4 + [40.0] * 4 + [1.0] * 4)
+    motor_kt = np.array([3.5 / (4.9 * 10.0)] * 4 +
+                        [12.0 / (4.11 * 40.0)] * 4 +
+                        [0.54] * 4)
+    motor_ke = np.array([
+        60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (56.0 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (56.0 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (56.0 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (56.0 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * 6.7),
+        60.0 / (2.0 * np.pi * 6.7),
+        60.0 / (2.0 * np.pi * 6.7),
+        60.0 / (2.0 * np.pi * 6.7),
+    ])
+    motor_r = np.array([0.58] * 4 + [0.72] * 4 + [8.2] * 4)
 
     # Timing variables
     last_sim_time = time.perf_counter()
@@ -465,6 +529,12 @@ def main():
                     key_2 = (glfw.get_key(window, glfw.KEY_2) == glfw.PRESS)
                     key_0 = (glfw.get_key(window, glfw.KEY_0) == glfw.PRESS)
                     key_h = (glfw.get_key(window, glfw.KEY_H) == glfw.PRESS)
+                    key_l = (glfw.get_key(window, glfw.KEY_L) == glfw.PRESS)
+                    key_t = (glfw.get_key(window, glfw.KEY_T) == glfw.PRESS)
+                    key_g = (glfw.get_key(window, glfw.KEY_G) == glfw.PRESS)
+                    start_lowest = key_l and not prev_key_l
+                    start_away_test = key_t and not prev_key_t
+                    start_toward_test = key_g and not prev_key_g
 
                     if key_c and not prev_key_c:
                         current_climb_mode = 1 if current_climb_mode == 2 else 2
@@ -485,11 +555,94 @@ def main():
                     prev_key_2 = key_2
                     prev_key_0 = key_0
                     prev_key_h = key_h
+                    prev_key_l = key_l
+                    prev_key_t = key_t
+                    prev_key_g = key_g
 
                     c_in.climb_mode = current_climb_mode
 
                     # 4. Invoke native C++ control core
                     lib.mobed_update(controller, ctypes.byref(s_in), ctypes.byref(c_in), CONTROL_DT, ctypes.byref(out))
+
+                    # Start a standalone 180-degree eccentric-arm power test.
+                    # The test does not alter any controller/model parameter;
+                    # it only replaces the eccentric position target while
+                    # active so both directions use the same measured setup.
+                    if start_lowest:
+                        ecc_test_to_lowest = True
+                        ecc_test_pending_direction = 0
+                        ecc_test_active = False
+                        ecc_pose_hold = False
+                        # Use the nearest equivalent zero representation for
+                        # each actuator, avoiding an unnecessary 2*pi jump.
+                        ecc_lowest_targets[:] = (
+                            2.0 * np.pi * np.round(
+                                np.array([s_in.ecc_pos[i] for i in range(4)]) /
+                                (2.0 * np.pi)))
+                        print("\n==> Moving chassis to lowest stance (eccentric arms highest)")
+
+                    if start_away_test or start_toward_test:
+                        ecc_test_to_lowest = True
+                        ecc_test_pending_direction = 1 if start_away_test else -1
+                        ecc_test_active = False
+                        ecc_pose_hold = False
+                        ecc_lowest_targets[:] = (
+                            2.0 * np.pi * np.round(
+                                np.array([s_in.ecc_pos[i] for i in range(4)]) /
+                                (2.0 * np.pi)))
+                        label = "AWAY" if start_away_test else "TOWARD"
+                        print(f"\n==> Preparing eccentric power test: {label}; moving to lowest chassis stance first")
+
+                    if ecc_test_to_lowest:
+                        # Use the measured joint positions as the approach
+                        # state, then start the requested 180-degree test only
+                        # after all four arms are physically at q=0 (up).
+                        lowest_error = np.array([
+                            np.arctan2(np.sin(s_in.ecc_pos[i] - ecc_lowest_targets[i]),
+                                      np.cos(s_in.ecc_pos[i] - ecc_lowest_targets[i]))
+                            for i in range(4)
+                        ])
+                        if np.max(np.abs(lowest_error)) <= ecc_lowest_tolerance:
+                            ecc_test_to_lowest = False
+                            ecc_lowest_reached = True
+                            if ecc_test_pending_direction != 0:
+                                ecc_test_active = True
+                                ecc_test_direction = ecc_test_pending_direction
+                                ecc_test_elapsed = 0.0
+                                ecc_test_start[:] = ecc_lowest_targets
+                                ecc_test_max_power.fill(0.0)
+                                ecc_test_last_power.fill(0.0)
+                                ecc_test_max_torque.fill(0.0)
+                                ecc_test_max_speed.fill(0.0)
+                                label = "AWAY" if ecc_test_direction > 0 else "TOWARD"
+                                print(f"==> Eccentric power test started from lowest chassis stance: {label}")
+                                ecc_test_pending_direction = 0
+                            else:
+                                ecc_pose_hold = True
+                                ecc_pose_hold_targets[:] = ecc_lowest_targets
+
+                    if ecc_test_to_lowest:
+                        for i in range(4):
+                            out.ecc_pos[i] = float(ecc_lowest_targets[i])
+
+                    if ecc_test_active:
+                        ecc_test_elapsed = min(ecc_test_duration,
+                                               ecc_test_elapsed + CONTROL_DT)
+                        progress = min(np.pi, 3.5 * ecc_test_elapsed)
+                        # These are actuator-space directions.  They are
+                        # mirrored because the MJCF hinge axes are mirrored;
+                        # this makes all four wheels move radially in the
+                        # same physical direction.
+                        targets = ecc_test_start + ecc_test_direction * ecc_away_signs * progress
+                        for i in range(4):
+                            out.ecc_pos[i] = float(targets[i])
+
+                    # Hold the standalone test pose after L/T/G completes.
+                    # This is deliberately applied after the native controller
+                    # update so the normal FSM cannot restore the old pose.
+                    if ecc_pose_hold and not ecc_test_to_lowest and not ecc_test_active:
+                        for i in range(4):
+                            out.ecc_pos[i] = float(ecc_pose_hold_targets[i])
 
                     # 5. Apply commands to MuJoCo actuators
                     for i in range(4):
@@ -501,6 +654,47 @@ def main():
                 mujoco.mj_step(model, data)
                 sim_time_debt -= PHYSICS_DT
 
+                # Read instantaneous mechanical power directly from MuJoCo
+                # on every physics step, independent of the test mode.
+                joint_power = np.zeros(12, dtype=np.float64)
+                for i in range(12):
+                    omega = float(data.qvel[joint_dof_adrs[i]])
+                    torque = float(data.actuator_force[i])
+                    joint_power[i] = torque * omega
+                live_joint_power[:] = joint_power
+                joint_torque = np.abs(np.array(data.actuator_force[:12], dtype=np.float64))
+                joint_speed = np.abs(np.array(
+                    [data.qvel[joint_dof_adrs[i]] for i in range(12)],
+                    dtype=np.float64))
+                motor_torque = joint_torque / motor_gear
+                motor_current = motor_torque / motor_kt
+                motor_speed = joint_speed * motor_gear
+                live_electrical_power[:] = motor_current * (
+                    motor_ke * motor_speed + motor_current * motor_r)
+
+                if ecc_test_active:
+                    ecc_test_last_power[:] = live_electrical_power
+                    ecc_test_max_power[:] = np.maximum(ecc_test_max_power,
+                                                        np.abs(live_electrical_power))
+                    ecc_test_max_torque[:] = np.maximum(
+                        ecc_test_max_torque, np.abs(data.actuator_force[:12]))
+                    ecc_test_max_speed[:] = np.maximum(
+                        ecc_test_max_speed,
+                        np.abs(data.qvel[np.array(joint_dof_adrs[:12])]))
+
+                    if ecc_test_elapsed >= ecc_test_duration:
+                        label = "AWAY" if ecc_test_direction > 0 else "TOWARD"
+                        print(f"\n==> Eccentric power test complete: {label}")
+                        for i, name in enumerate(JOINT_NAMES):
+                            print(f"    {name:24s} max |P|={ecc_test_max_power[i]:8.3f} W  "
+                                  f"max |tau|={ecc_test_max_torque[i]:7.3f} Nm  "
+                                  f"max |omega|={ecc_test_max_speed[i]:7.3f} rad/s")
+                        ecc_pose_hold_targets[:] = (
+                            ecc_test_start +
+                            ecc_test_direction * ecc_away_signs * np.pi)
+                        ecc_pose_hold = True
+                        ecc_test_active = False
+
             # ---------------- Render 3D Scene directly via OpenGL/Metal ----------------
             fb_w, fb_h = glfw.get_framebuffer_size(window)
             viewport = mujoco.MjrRect(0, 0, fb_w, fb_h)
@@ -510,6 +704,30 @@ def main():
                 camera_ctrl.cam, mujoco.mjtCatBit.mjCAT_ALL, scn
             )
             mujoco.mjr_render(viewport, scn, con)
+
+            # In-window power dashboard.  Terminal telemetry is intentionally
+            # kept separate; this overlay is visible in the graphical window.
+            if True:
+                test_label = ("RUNNING AWAY" if ecc_test_active and ecc_test_direction > 0 else
+                              "RUNNING TOWARD" if ecc_test_active else
+                              "MOVING TO LOWEST" if ecc_test_to_lowest else
+                              "HOLD / LIVE")
+                rows = [f"ELECTRICAL POWER EST. [{test_label}]",
+                        "T: away  G: toward  L: chassis lowest / arms up (q=0)",
+                        "joint       P_elec live / test max (W)"]
+                short_names = ["S_FL", "S_FR", "S_RL", "S_RR",
+                               "E_FL", "E_FR", "E_RL", "E_RR",
+                               "W_FL", "W_FR", "W_RL", "W_RR"]
+                rows.extend(
+                    f"{short_names[i]:5s} {live_electrical_power[i]:+7.1f} / {ecc_test_max_power[i]:7.1f} W"
+                    for i in range(12)
+                )
+                overlay_text = "\n".join(rows)
+                mujoco.mjr_overlay(
+                    mujoco.mjtFontScale.mjFONTSCALE_100,
+                    mujoco.mjtGridPos.mjGRID_TOPLEFT,
+                    viewport, overlay_text, "", con
+                )
             glfw.swap_buffers(window)
 
             # ---------------- Dynamic Single-Line Terminal Telemetry (10 Hz) ----------------
@@ -522,9 +740,18 @@ def main():
                 mode_tag = "STRAFE(391mm)" if is_strafing else "ROAD(Turn+Bank)"
                 active_mode_label = "PAPER_NORMAL" if current_climb_mode == 1 else ("STAIR_200MM" if current_climb_mode == 2 else "DISABLED")
 
-                sys.stdout.write(
-                    f"\r\033[K[MobED] {mode_tag} | Mode=[{active_mode_label}] | Vx={c_in.vx:+.2f} m/s | Vy={c_in.vy:+.2f} m/s | Wz={c_in.wz:+.2f} rad/s | Bank={np.degrees(out.bank_angle):+.1f}° | FSM={fsm_str}"
+                dashboard = (
+                    f"\r\033[K[MobED] {mode_tag} | Mode=[{active_mode_label}] | "
+                    f"Vx={c_in.vx:+.2f} m/s | Vy={c_in.vy:+.2f} m/s | "
+                    f"Wz={c_in.wz:+.2f} rad/s | Bank={np.degrees(out.bank_angle):+.1f}° | FSM={fsm_str}"
                 )
+                if ecc_test_active or np.any(ecc_test_max_power > 0.0):
+                    dashboard += " | Power W current/max: " + ", ".join(
+                        f"{JOINT_NAMES[i].replace('Steering_joint_', 'S_').replace('Posture_control_joint_', 'E_').replace('Wheel_joint_', 'W_')}="
+                        f"{ecc_test_last_power[i]:+.1f}/{ecc_test_max_power[i]:.1f}"
+                        for i in range(12)
+                    )
+                sys.stdout.write(dashboard)
                 sys.stdout.flush()
 
     finally:

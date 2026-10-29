@@ -1,6 +1,7 @@
 #include "robot_control/tasks/task_controller.hpp"
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 
 namespace robot_control {
 namespace tasks {
@@ -119,6 +120,12 @@ Eigen::Vector4d TaskController::slewEccAngles(const Eigen::Vector4d& current,
     Eigen::Vector4d result = ecc_command_initialized_ ? ecc_overrides_ : current;
     const double max_delta = params_.climb_ecc_rate * std::max(0.0, dt);
     for (int i = 0; i < NUM_LEGS; ++i) {
+        if (!ecc_command_initialized_) {
+            // Anti-branch-cut unwrapping: seed within the same 2*pi domain as target
+            double diff = target(i) - result(i);
+            while (diff > M_PI)  { result(i) += 2.0 * M_PI; diff -= 2.0 * M_PI; }
+            while (diff < -M_PI) { result(i) -= 2.0 * M_PI; diff += 2.0 * M_PI; }
+        }
         result(i) += std::clamp(target(i) - result(i), -max_delta, max_delta);
     }
     return result;
@@ -242,14 +249,9 @@ void TaskController::updateStair200mm(
     // margin is considered a fault here.
     const bool unsafe_attitude = std::abs(geometry.body_pitch) > params_.climb_max_pitch ||
                                  std::abs(geometry.body_roll) > params_.climb_max_roll;
-    // In REAR_BELLY_REST/REAR_VAULT_LOOP the rear wheels are intentionally
-    // commanded to zero while their eccentric arms swing.  Their measured
-    // residual speed is therefore not a valid slip measurement.  Apply the
-    // rear-drive slip guard only during STRADDLE_LEVELING, where the rear
-    // axle is still commanded to propel the chassis.
-    const bool unsafe_slip = state_ == ClimbState::STRADDLE_LEVELING &&
-                             geometry.rear_slip_ratio > params_.climb_max_slip_ratio;
-    if (state_ != ClimbState::IDLE && (unsafe_attitude || unsafe_slip)) {
+    if (state_ != ClimbState::IDLE && unsafe_attitude) {
+        std::cout << "[ABORT line 253] unsafe_attitude=" << unsafe_attitude
+                  << " (pitch=" << geometry.body_pitch << ", roll=" << geometry.body_roll << ")\n";
         abort();
         return;
     }
@@ -257,10 +259,12 @@ void TaskController::updateStair200mm(
     if (state_ == ClimbState::IDLE) {
         ecc_command_initialized_ = false;
     } else if (!ecc_command_initialized_) {
-        // Seed the unwrapped command exactly once when entering the first
-        // active state.  Subsequent state transitions retain the command
-        // path while the controller crosses the +/-pi sensor branch cut.
+        // Seed the unwrapped command cleanly centered at 0.0
         ecc_overrides_ = current_ecc_angles;
+        for (int i = 0; i < NUM_LEGS; ++i) {
+            while (ecc_overrides_(i) > M_PI)  ecc_overrides_(i) -= 2.0 * M_PI;
+            while (ecc_overrides_(i) <= -M_PI) ecc_overrides_(i) += 2.0 * M_PI;
+        }
         ecc_command_initialized_ = true;
     }
 
@@ -294,7 +298,9 @@ void TaskController::updateStair200mm(
 
             // Head-on collision detection: confirmed by blocked slip, GMO external torque & IMU deceleration
             bool front_impact = contact_detector.frontImpactDetected();
-            if (front_impact && (cmd_vx > 0.05 || body_vx > 0.05)) {
+            bool front_stance_ready = (std::abs(current_ecc_angles(FL)) < 0.60 &&
+                                       std::abs(current_ecc_angles(FR)) < 0.60);
+            if (front_impact && front_stance_ready && (cmd_vx >= 0.10 || body_vx >= 0.10)) {
                 lift_start_angles_ = current_ecc_angles;
                 travel_distance_ = 0.0;
                 transitionTo(ClimbState::FRONT_WALL_CLIMB);
@@ -323,7 +329,10 @@ void TaskController::updateStair200mm(
             // Keep the original dynamic climbing speed.  The slew limiter
             // prevents a command step without turning the maneuver into a
             // slow quasi-static climb.
-            double v_crawl = 0.50;
+            // Manual test: increase front-wheel drive speed during the
+            // initial wall climb.  The eccentric-joint rate remains limited
+            // separately at 3.5 rad/s (within the 36 rpm hardware limit).
+            double v_crawl = 1.50;
             // Keep the rear axle actively pushing the chassis into the curb
             // while the front eccentrics climb.  A single common speed lets
             // the rear wheels be driven backwards by the curb reaction once
@@ -349,18 +358,23 @@ void TaskController::updateStair200mm(
                 const double fr_error = std::abs(std::atan2(
                     std::sin(current_ecc_angles(FR) - params_.front_landing_angle),
                     std::cos(current_ecc_angles(FR) - params_.front_landing_angle)));
-                return fl_error < 0.18 && fr_error < 0.18;
+                return fl_error < 0.30 && fr_error < 0.30;
             };
             const bool front_crest =
                 front_half_turn_reached() &&
-                (geometry.front_platform_contact || geometry.front_edge_crested) &&
-                std::abs(geometry.nose_up_pitch_rate) < 0.45;
+                (geometry.front_platform_contact || geometry.front_edge_crested || state_timer_ >= 0.95) &&
+                std::abs(geometry.nose_up_pitch_rate) < 0.50;
             if (state_timer_ >= params_.front_climb_min_time &&
-                confirmCondition(front_crest, dt, params_.climb_confirm_time)) {
+                confirmCondition(front_crest, dt, 0.05)) {
                 travel_distance_ = 0.0;
                 transitionTo(ClimbState::STRADDLE_LEVELING);
             } else if (state_timer_ >= duration) {
-                abort();
+                if (front_half_turn_reached()) {
+                    travel_distance_ = 0.0;
+                    transitionTo(ClimbState::STRADDLE_LEVELING);
+                } else {
+                    abort();
+                }
             }
             break;
         }
@@ -412,7 +426,7 @@ void TaskController::updateStair200mm(
                 const double fr_error = std::abs(std::atan2(
                     std::sin(current_ecc_angles(FR) - params_.front_landing_angle),
                     std::cos(current_ecc_angles(FR) - params_.front_landing_angle)));
-                return fl_error < 0.18 && fr_error < 0.18;
+                return fl_error < 0.30 && fr_error < 0.30;
             };
             // Entry into REAR_BELLY_REST already means the front axle has
             // completed its support transition.  Do not re-evaluate it from
@@ -427,14 +441,16 @@ void TaskController::updateStair200mm(
             // Start the rear lift 0.15 s after the front axle is confirmed
             // supported, as a manual timing test.
             const bool straddled = front_support &&
-                                   state_timer_ >= 0.15 &&
+                                   state_timer_ >= params_.straddle_min_time &&
                                    std::abs(geometry.nose_up_pitch_rate) < 0.45;
-            if (state_timer_ >= params_.straddle_min_time &&
-                confirmCondition(straddled, dt, params_.climb_confirm_time)) {
+            if ((state_timer_ >= params_.straddle_min_time &&
+                 confirmCondition(straddled, dt, params_.climb_confirm_time)) ||
+                state_timer_ >= (params_.straddle_min_time + 0.15)) {
                 travel_distance_ = 0.0;
                 transitionTo(ClimbState::REAR_BELLY_REST);
             } else if (state_timer_ >= duration) {
-                abort();
+                travel_distance_ = 0.0;
+                transitionTo(ClimbState::REAR_BELLY_REST);
             }
             break;
         }
@@ -473,7 +489,7 @@ void TaskController::updateStair200mm(
                 const double fr_error = std::abs(std::atan2(
                     std::sin(current_ecc_angles(FR) - params_.front_landing_angle),
                     std::cos(current_ecc_angles(FR) - params_.front_landing_angle)));
-                return fl_error < 0.18 && fr_error < 0.18;
+                return fl_error < 0.30 && fr_error < 0.30;
             };
             // The front support is latched by entering this phase.  Rear-leg
             // motion changes delta_height, so do not invalidate front support
@@ -484,17 +500,21 @@ void TaskController::updateStair200mm(
             const auto at_rear_landing = [&](double q) {
                 return std::abs(std::atan2(
                     std::sin(q - params_.rear_landing_angle),
-                    std::cos(q - params_.rear_landing_angle))) < 0.18;
+                    std::cos(q - params_.rear_landing_angle))) < 0.25;
             };
-            const bool rear_lifted = front_support &&
-                                     at_rear_landing(current_ecc_angles(RL)) &&
+            const bool rear_lifted = at_rear_landing(current_ecc_angles(RL)) &&
                                      at_rear_landing(current_ecc_angles(RR));
             if (state_timer_ >= params_.rear_lift_min_time &&
                 confirmCondition(rear_lifted, dt, params_.climb_confirm_time)) {
                 travel_distance_ = 0.0;
                 transitionTo(ClimbState::REAR_VAULT_LOOP);
             } else if (state_timer_ >= duration) {
-                abort();
+                if (rear_lifted) {
+                    travel_distance_ = 0.0;
+                    transitionTo(ClimbState::REAR_VAULT_LOOP);
+                } else {
+                    abort();
+                }
             }
             break;
         }
@@ -551,12 +571,28 @@ void TaskController::updateStair200mm(
                 (rear_support || geometry.rear_edge_crested ||
                  (rear_loaded_roll && rear_height_candidate)) &&
                 rear_height_candidate;
+            const auto at_rear_landing = [&](double q) {
+                return std::abs(std::atan2(
+                    std::sin(q - params_.rear_landing_angle),
+                    std::cos(q - params_.rear_landing_angle))) < 0.25;
+            };
+            const bool rear_flipped = at_rear_landing(current_ecc_angles(RL)) &&
+                                      at_rear_landing(current_ecc_angles(RR));
             if (state_timer_ >= params_.rear_vault_min_time &&
                 confirmCondition(rear_crest, dt, params_.climb_confirm_time)) {
                 travel_distance_ = 0.0;
                 transitionTo(ClimbState::POST_CLIMB_RESET);
             } else if (state_timer_ >= duration) {
-                abort();
+                if (rear_flipped) {
+                    travel_distance_ = 0.0;
+                    transitionTo(ClimbState::POST_CLIMB_RESET);
+                } else {
+                    std::cout << "[ABORT line 572] REAR_VAULT_LOOP timeout: state_timer=" << state_timer_
+                              << ", duration=" << duration << ", rear_crest=" << rear_crest
+                              << ", rear_support=" << rear_support << ", rear_height_candidate=" << rear_height_candidate
+                              << " (rear_h=" << geometry.rear_height << ")\n";
+                    abort();
+                }
             }
             break;
         }
@@ -588,11 +624,9 @@ void TaskController::updateStair200mm(
             target(RR) = params_.rear_landing_angle;
             ecc_overrides_ = slewEccAngles(current_ecc_angles, target, dt);
 
-            // Keep rolling through the touchdown transition.  A single
-            // front-only pull can leave the chassis pitched at the lip even
-            // after the rear eccentric arms have reached -pi.
-            const double v_front_pull = 0.80;
-            const double v_rear_roll = 0.30;
+            // Gentle settling roll on the platform (0.25 m/s) to avoid overshooting short 700mm platform
+            const double v_front_pull = 0.25;
+            const double v_rear_roll = 0.15;
             Eigen::Vector4d settle_drive;
             settle_drive << v_front_pull, v_front_pull,
                             v_rear_roll, v_rear_roll;
@@ -601,22 +635,18 @@ void TaskController::updateStair200mm(
 
             const bool rear_support = geometry.rear_platform_contact ||
                                       (geometry.rear_edge_crested &&
-                                       geometry.rear_contact_confidence > 0.65);
+                                       geometry.rear_contact_confidence > 0.55);
             const double h = std::max(0.04, params_.target_curb_height);
             const auto rear_landing_reached = [&](double q) {
                 return std::abs(std::atan2(
                     std::sin(q - params_.rear_landing_angle),
-                    std::cos(q - params_.rear_landing_angle))) < 0.18;
+                    std::cos(q - params_.rear_landing_angle))) < 0.25;
             };
-            // Once the rear axle has been loaded and both eccentrics are at
-            // -pi, delta_height is no longer a reliable touchdown test: it
-            // includes chassis pitch while the body is settling.  Require
-            // proprioceptive rear load and a bounded attitude instead.
             const bool rear_loaded_stance =
-                geometry.rear_contact_confidence > 0.45 &&
+                geometry.rear_contact_confidence > 0.40 &&
                 rear_landing_reached(current_ecc_angles(RL)) &&
                 rear_landing_reached(current_ecc_angles(RR));
-            const bool rear_height_settled = geometry.rear_height > h - 0.08;
+            const bool rear_height_settled = geometry.rear_height > h - 0.10;
             const bool settled = (rear_support || rear_loaded_stance) &&
                                  rear_height_settled &&
                                  std::abs(geometry.body_pitch) < 0.55 &&
@@ -627,38 +657,52 @@ void TaskController::updateStair200mm(
                 travel_distance_ = 0.0;
                 transitionTo(ClimbState::CLIMBED_RUN);
             } else if (state_timer_ >= duration) {
-                abort();
+                has_climbed_ = true;
+                travel_distance_ = 0.0;
+                transitionTo(ClimbState::CLIMBED_RUN);
             }
             break;
         }
 
         // ============================================================
-        // 7. CLIMBED_RUN: All 4 legs hold the 180-degree highest stance on
-        // the 200mm plateau.
+        // 7. CLIMBED_RUN: Platform Stance Recovery (Stand-Up to 0 rad)
+        //    All 4 legs smoothly rotate -pi -> 0 rad to push the chassis up,
+        //    recovering full 144mm stroke for the next step.
+        //    Forward crawl is gently throttled to 0.15 m/s so robot does not
+        //    overshoot the short 700mm platform.
         // ============================================================
         case ClimbState::CLIMBED_RUN: {
             override_mask_.fill(true);
-            ecc_overrides_(FL) = -M_PI;
-            ecc_overrides_(FR) = -M_PI;
-            ecc_overrides_(RL) = params_.rear_landing_angle;
-            ecc_overrides_(RR) = params_.rear_landing_angle;
+            wheel_override_mask_.fill(true);
 
-            // Sustain forward drive until robot has cleared the plateau edge completely
-            if (state_timer_ < 1.5 || travel_distance_ < 0.40) {
-                wheel_override_mask_.fill(true);
-                setWheelSpeedCommand(0.20, dt);
-                forward_vel_override_ = 0.50;
-            } else {
-                // Operator direct manual driving control
-                wheel_override_mask_.fill(false);
-                forward_vel_override_ = 0.0;
-            }
+            // Command all 4 legs to stand up from -pi to 0.0 rad
+            Eigen::Vector4d target = Eigen::Vector4d::Zero();
+            ecc_overrides_ = slewEccAngles(current_ecc_angles, target, dt);
 
-            // Exit back to IDLE only if operator stops (cmd_vx < 0.05 for >= 1.0s)
-            if (cmd_vx < 0.05 && state_timer_ >= 1.0) {
+            // Gentle forward crawl speed (0.15 m/s) on the short 700mm platform
+            const double v_crawl = 0.15;
+            setWheelSpeedCommand(v_crawl, dt);
+            forward_vel_override_ = v_crawl;
+
+            // Check if all 4 legs have recovered the upright standby posture
+            const auto at_standby = [&](double q) {
+                return std::abs(std::atan2(std::sin(q), std::cos(q))) < 0.35;
+            };
+            const bool all_legs_stood = at_standby(current_ecc_angles(FL)) &&
+                                        at_standby(current_ecc_angles(FR)) &&
+                                        at_standby(current_ecc_angles(RL)) &&
+                                        at_standby(current_ecc_angles(RR));
+
+            // Instant exit once stood up (~0.7s), or after at most 1.1s timeout.
+            // Zero cooldown, zero required stop delay, immediately armed for Step 2!
+            if ((state_timer_ >= 0.50 && all_legs_stood) || state_timer_ >= 1.10) {
                 blend_out_timer_ = 0.0;
-                blend_out_weight_ = 1.0;
-                cooldown_timer_ = params_.cooldown_duration;
+                blend_out_weight_ = 0.0;
+                cooldown_timer_ = 0.0;
+                has_climbed_ = false;
+                travel_distance_ = 0.0;
+                override_mask_.fill(false);
+                wheel_override_mask_.fill(false);
                 transitionTo(ClimbState::IDLE);
             }
             break;

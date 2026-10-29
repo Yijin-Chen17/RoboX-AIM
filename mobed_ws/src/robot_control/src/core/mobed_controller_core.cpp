@@ -236,7 +236,9 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     contact_detector_->update(
         curr_ecc_efforts, curr_wheel_efforts, curr_wheel_velocities,
         chassis_forward_vel, active_cmd_vel.x(), forward_accel_dyn,
-        climb_geometry_estimator_->getGeometry(), dt);
+        climb_geometry_estimator_->getGeometry(), dt,
+        active_cmd_vel.y(), active_cmd_vel.z(),
+        imu.angular_velocity.y());
 
     // ================================================================
     // Phase 4: Obstacle Climbing State Machine (Climb FSM)
@@ -248,8 +250,15 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             contact_detector_->reset();
         }
 
+        bool was_active = task_controller_->isActive();
         task_controller_->update(
             *contact_detector_, geom, curr_ecc_angles, curr_ecc_efforts, dt, chassis_forward_vel, cmd_vel(0));
+        bool is_active = task_controller_->isActive();
+        if (was_active && !is_active) {
+            // Climb completed and exited: reset estimators so next step is clean and fresh!
+            climb_geometry_estimator_->reset();
+            contact_detector_->reset();
+        }
     }
 
     // ================================================================
@@ -335,15 +344,10 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     Eigen::Vector4d target_ecc = balance_out.ecc_angles;
 
     // Direct 200mm Stair Mode Maximum Height Stance:
-    // In STAIR_200MM mode before climb: eccentric arms stand strictly vertically downwards (q = 0.0 rad, 6 o'clock).
-    // In STAIR_200MM mode after climb: eccentric arms hold the 180-degree
-    // highest stance (q = -pi rad).  No second half-turn is required.
+    // In STAIR_200MM mode before and between climbs: eccentric arms stand strictly vertically downwards (q = 0.0 rad, 6 o'clock)
+    // to provide maximum ground clearance and full 144mm upward climbing stroke.
     if (climb_mode_ == ClimbMode::STAIR_200MM && !task_controller_->isActive()) {
-        if (!task_controller_->hasClimbed()) {
-            target_ecc.setZero();
-        } else {
-            target_ecc.setConstant(-M_PI);
-        }
+        target_ecc.setZero();
     }
 
     // ================================================================
@@ -403,6 +407,8 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             effort_cmd = 0.0;
         }
 
+        // DM-J4340P rated torque is 12 Nm.  Its 40 Nm value is peak torque
+        // and must not be used as a continuous position-control limit.
         effort_cmd = std::clamp(effort_cmd, -12.0, 12.0);
         out.ecc_effort[i] = effort_cmd;
 
@@ -420,7 +426,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
         }
         out.wheel_vel[i] = target_wheel_vel * wheel_signs_[i];
 
-        // Traction torque injection (strictly bounded within realistic ±3.0 Nm wheel limit)
+        // Traction torque injection (final wheel limit is the MS9010 2.2 Nm peak)
         double wheel_effort = driving_controller_->getWheelTorques()(i) * wheel_signs_[i];
         if (task_controller_->isActive()) {
             auto state = task_controller_->getState();
@@ -441,7 +447,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
                 wheel_effort += 1.0 * wheel_signs_[i];
             }
         }
-        wheel_effort = std::clamp(wheel_effort, -3.0, 3.0);
+        wheel_effort = std::clamp(wheel_effort, -2.2, 2.2);
         out.wheel_effort[i] = wheel_effort;
     }
 
