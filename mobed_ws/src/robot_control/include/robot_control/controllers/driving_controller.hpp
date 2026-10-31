@@ -43,7 +43,11 @@ struct DrivingControllerParams {
     // Left legs (FL, RL): +0.05345 m; Right legs (FR, RR): -0.05345 m
     double wheel_scrub_offset_y = 0.05345;
     // Steering assist proportional gain for wheel velocity feedforward (1/s)
-    double steer_assist_kp = 8.0;
+    double steer_assist_kp = 4.0;
+    // Maximum break-away rolling velocity for scrub assist (rad/s, ~0.12 m/s)
+    double steer_assist_max_vel = 1.2;
+    // Tracking error deadband (rad, ~2.0 deg) to prevent steady-state creep at rest
+    double steer_assist_deadband = 0.035;
 
     // ---- Velocity & Speed Saturation Limits ----
     double max_linear_vel  = 1.2;   // m/s (maximum chassis planar translation speed)

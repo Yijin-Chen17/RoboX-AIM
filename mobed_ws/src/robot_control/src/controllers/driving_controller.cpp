@@ -46,6 +46,7 @@ std::pair<double, double> DrivingController::optimizeSwerveModule(
         }
         // Force-alignment requested (homing or neutral centering):
         // Steer directly towards des_steer, clamping outside forbidden sector
+        prev_swerve_inverted_[leg_index] = false;
         double s_target = kinematics_->normalize_angle(des_steer);
         s_target = kinematics_->clampToSafeSteerSector(leg_index, s_target);
         return {s_target, 0.0};
@@ -203,28 +204,18 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     // ================================================================
     Eigen::Vector4d raw_steer_angles;
     Eigen::Vector4d raw_wheel_speeds;
-    if (is_homing) {
+    bool align_to_neutral = is_homing || (active_cmd.norm() < 1e-3);
+
+    if (align_to_neutral) {
         raw_steer_angles.setZero();
         raw_wheel_speeds.setZero();
         zero_cmd_duration_ = 0.0;
     } else {
-        if (active_cmd.norm() < 1e-3) {
-            zero_cmd_duration_ += dt;
-        } else {
-            zero_cmd_duration_ = 0.0;
-        }
-
         // Use prev_steer_angles_ (last commanded) instead of current_steer_angles (physical)
         // Pass current_ecc_angles for exact contact point ^B r_i (Section III.D)
         auto [s, w] = kinematics_->computeDrivingIK(active_cmd, prev_steer_angles_, current_ecc_angles);
         raw_steer_angles = s;
         raw_wheel_speeds = w;
-
-        // If stopped for > 0.3s, gently guide steering back to neutral (0.0 rad)
-        // This prevents steering angles from remaining stuck sideways (+-90 deg) after rotation/strafe
-        if (zero_cmd_duration_ > 0.3) {
-            raw_steer_angles.setZero();
-        }
     }
 
     // ============================================================
@@ -232,8 +223,6 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     // ============================================================
     Eigen::Vector4d opt_steer = prev_steer_angles_;
     Eigen::Vector4d opt_speed = prev_wheel_speeds_;
-
-    bool align_to_neutral = is_homing || (zero_cmd_duration_ > 0.3);
 
     for (int i = 0; i < 4; ++i) {
         auto [s, w] = optimizeSwerveModule(
@@ -264,26 +253,13 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
             double u_y = std::sin(opt_steer(i));
             double v_dot = (v_ix * u_x + v_iy * u_y) / r_w;
 
-            // Lateral strafe traction alignment:
-            // Ensure the lateral traction component (v_module * sin(theta_steer)) strictly matches
-            // the commanded lateral direction sign(active_cmd.y()).
-            if (std::abs(active_cmd.y()) > 1e-3 && std::abs(u_y) > 0.1) {
-                double sign_cmd_y = (active_cmd.y() >= 0.0) ? 1.0 : -1.0;
-                double sign_steer_y = (u_y >= 0.0) ? 1.0 : -1.0;
-                // Base-frame lateral push on chassis is: F_y ~ v_wheel * sin(theta_steer).
-                // To guarantee F_y has sign_cmd_y: v_wheel must have sign (sign_cmd_y * sign_steer_y).
-                double desired_sign = sign_cmd_y * sign_steer_y;
-                double speed_mag = std::abs(v_dot) > 1e-4 ? std::abs(v_dot) : std::abs(opt_speed(i));
-                v_dot = speed_mag * desired_sign;
-            }
-
             opt_speed(i) = v_dot;
         }
     }
 
     // ============================================================
     // 4. Chassis-Level Coherent Drive Scaling (RoboMaster Swerve Principle)
-    // Scale driving wheel speeds by cos(max_error) so wheels don't fight while rotating into alignment!
+    // Scale driving wheel speeds by cos^2(max_error) so wheels don't fight while rotating into alignment!
     // ============================================================
     double max_steer_error = 0.0;
     for (int i = 0; i < 4; ++i) {
@@ -296,7 +272,8 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     double coherent_drive_scale = 1.0;
     if (params_.enable_coherent_drive_scaling) {
         if (max_steer_error > params_.steer_alignment_deadband) {
-            coherent_drive_scale = std::max(0.0, std::cos(max_steer_error));
+            double c = std::max(0.0, std::cos(max_steer_error));
+            coherent_drive_scale = c * c;
         }
     }
 
@@ -305,7 +282,11 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     // Offset wheel scrub compensation: when steering rotates at rate dot_theta,
     // the wheel contact patch at lateral scrub offset y_offset swings along an arc.
     // Adding v_roll_comp = - y_offset * dot_theta transforms sliding scrub friction
-    // into pure rolling, while providing up to 1.18 Nm of mechanical steering assist torque.
+    // into pure rolling.
+    // To prevent multi-wheel internal chassis tension and lockup:
+    // - Deadband on tracking error eliminates steady-state motor creep at rest.
+    // - Assist velocity is strictly capped to steer_assist_max_vel (1.2 rad/s).
+    // - Assist velocity is smoothly faded out during translation/rotation.
     // ============================================================
     Eigen::Vector4d final_steer = prev_steer_angles_;
     Eigen::Vector4d final_speed = prev_wheel_speeds_;
@@ -320,6 +301,11 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     double r_w = kinematics_->getParams().r_wheel;
     if (r_w < 1e-4) r_w = 0.10;
 
+    // Fading factor: when vehicle is actively translating or rotating, dynamic rolling friction
+    // already eliminates scrub resistance. Fade out scrub assist so wheel speeds remain symmetric!
+    double cmd_motion = active_cmd.head<2>().norm() + 0.2 * std::abs(active_cmd.z());
+    double assist_fade = std::clamp(1.0 - cmd_motion / 0.3, 0.0, 1.0);
+
     for (int i = 0; i < 4; ++i) {
         // Rate Limiting (Steering) with continuous forbidden sector avoidance
         double max_steer_delta = params_.max_steer_vel * dt;
@@ -329,11 +315,30 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
         // Steering rotation velocity and tracking error
         double steer_cmd_rate = (final_steer(i) - prev_steer_angles_(i)) / std::max(dt, 1e-4);
         double steer_track_err = kinematics_->normalize_angle(final_steer(i) - current_steer_angles(i));
-        double effective_steer_rate = steer_cmd_rate + params_.steer_assist_kp * steer_track_err;
+
+        // Deadband on tracking error: ignore small errors (< 2 deg) to prevent motor creep / tension at rest
+        double effective_track_err = 0.0;
+        if (std::abs(steer_track_err) > params_.steer_assist_deadband) {
+            effective_track_err = (steer_track_err > 0.0)
+                ? (steer_track_err - params_.steer_assist_deadband)
+                : (steer_track_err + params_.steer_assist_deadband);
+        }
+
+        double effective_steer_rate = steer_cmd_rate + params_.steer_assist_kp * effective_track_err;
         effective_steer_rate = std::clamp(effective_steer_rate, -params_.max_steer_vel, params_.max_steer_vel);
 
         // Wheel scrub compensation velocity (rad/s): omega = - (y_offset / r_wheel) * effective_steer_rate
-        double omega_steer_assist = - (y_offsets[i] / r_w) * effective_steer_rate;
+        double raw_omega_assist = - (y_offsets[i] / r_w) * effective_steer_rate;
+
+        // Strictly clamp assist velocity to prevent chassis-level tire clamping / tension lockup
+        double clamped_omega_assist = std::clamp(raw_omega_assist, -params_.steer_assist_max_vel, params_.steer_assist_max_vel);
+        double omega_steer_assist = clamped_omega_assist * assist_fade;
+
+        // When returning to neutral at standstill (align_to_neutral with zero command):
+        // Further attenuate assist by 50% so left/right opposing tire forces cannot bind the chassis
+        if (align_to_neutral && active_cmd.norm() < 1e-3) {
+            omega_steer_assist *= 0.5;
+        }
 
         // Combine chassis-level translation with wheel steering assist
         double target_speed = opt_speed(i) * coherent_drive_scale + omega_steer_assist;
