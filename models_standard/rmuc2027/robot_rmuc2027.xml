@@ -162,8 +162,8 @@
     <key name="home_blue" qpos="-10.0 1.62 -1.412 0 0 0 1 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
     <!-- Center Platform Test Location -->
     <key name="test_center" qpos="4.0 1.62 -1.038 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
-    <!-- Central Platform Top Level -->
-    <key name="test_platform_top" qpos="0.0 2.42 -0.748 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
+    <!-- Central Platform East Terrace (Z_world = -1.237m) -->
+    <key name="test_platform_top" qpos="1.20 1.089 -1.140 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
   </keyframe>
 
   <!-- Actuators: Migrated and Calibrated for ROBOX V2 (30.00 kg) -->
