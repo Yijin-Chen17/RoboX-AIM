@@ -7,7 +7,6 @@
 [![MuJoCo 3.11+](https://img.shields.io/badge/MuJoCo-3.11%2B-orange.svg)](https://mujoco.org/)
 [![ROS 2 Humble](https://img.shields.io/badge/ROS%202-Humble-22314E.svg?logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
 [![Platform macOS | Linux](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux-green.svg)](https://github.com/)
-[![License Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 
 **面向现代移动机器人（Hyundai MobED / ROBOX V2）的超高性能 120 FPS 原生 MuJoCo 动力学仿真、高鲁棒运动学/动力学控制算法库与 ROS 2 架构**
 
@@ -254,10 +253,3 @@ docker build -t ros2-dev .
 | **垂直离地间隙范围** | **0.055 m ~ 0.228 m** | 偏心机构在上下止点间的连续调节高度域 |
 | **最大巡航速度 / 自转角速度** | **1.0 m/s / 1.8 rad/s** | 软件安全限幅下，支持超调响应 |
 | **越障能力** | **高达 200 mm 垂直阶梯** | 经模式 2 (STAIR_200MM) 自动化翻越状态机通过 |
-
----
-
-## 📜 许可证
-
-本项目遵循 [Apache-2.0 License](LICENSE) 开源许可证。
-欢迎用于学术研究、高校赛事（RoboMaster 等）及工程原型开发。如在研究或项目中使用了本项目，请注明来源出处。
