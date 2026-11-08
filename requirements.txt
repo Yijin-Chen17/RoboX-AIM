@@ -1,17 +1,8 @@
-# ==============================================================================
-# RoboX-AIM / MobED Python Dependencies
-# ==============================================================================
-
-# Core Physics Simulation & Rendering
 mujoco>=3.11.0
 glfw>=2.7.0
 PyOpenGL>=3.1.0
-
-# Scientific Computing & Mathematics
 numpy>=1.24.0,<3.0.0
 scipy>=1.10.0
-
-# Optional / Platform Utilities
 pynput>=1.8.0
 pyobjc-core>=10.0.0; sys_platform == 'darwin'
 pyobjc-framework-Cocoa>=10.0.0; sys_platform == 'darwin'
