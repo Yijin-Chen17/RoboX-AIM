@@ -80,12 +80,14 @@ class ActuatorOutputs(ctypes.Structure):
 # -----------------------------------------------------------------------------
 # Arena & Joint Constants
 # -----------------------------------------------------------------------------
-PLAYGROUND_XML    = 'models_standard/playground/robot_playground.xml'
-RMUC2027_LITE_XML = 'models_standard/rmuc2027/robot_rmuc2027_lite.xml'
-RMUC2027_HD_XML   = 'models_standard/rmuc2027/robot_rmuc2027.xml'
-ROBOX_V2_XML      = 'models_standard/robox_v2/robox_v2.xml'
-FLAT_XML          = ROBOX_V2_XML
-DYLIB_PATH        = 'build_native/libmobed_control.dylib'
+PLAYGROUND_XML        = 'models_standard/playground/robot_playground.xml'
+RMUC2027_XML         = 'models_standard/RMUC2027_MuJoCo/robot_rmuc2027.xml'
+RMUC2027_PHYSICS_XML = 'models_standard/RMUC2027_MuJoCo/robot_rmuc2027_physics.xml'
+RMUC2027_LITE_XML    = RMUC2027_PHYSICS_XML
+RMUC2027_HD_XML      = RMUC2027_XML
+ROBOX_V2_XML          = 'models_standard/robox_v2/robox_v2.xml'
+FLAT_XML              = ROBOX_V2_XML
+DYLIB_PATH            = 'build_native/libmobed_control.dylib'
 
 JOINT_NAMES = [
     'Steering_joint_LF', 'Steering_joint_RF', 'Steering_joint_LB', 'Steering_joint_RB',
@@ -206,12 +208,12 @@ def get_hardware_keyboard_state(window) -> dict:
 def main():
     parser = argparse.ArgumentParser(description='MobED / ROBOX V2 120 FPS Direct GLFW MuJoCo Simulator')
     parser.add_argument('--arena', type=str, default='rmuc2027',
-                        choices=['rmuc2027', 'rmuc2027_hd', 'robox', 'playground', 'flat'],
-                        help='Arena scene: rmuc2027 (default: 120 FPS Lite RMUC 2027 + ROBOX V2), rmuc2027_hd (Original HD CAD), robox/flat (ROBOX V2 Flat Ground), playground (ROBOX V2 Obstacle testbench)')
+                        choices=['rmuc2027', 'rmuc2027_physics', 'rmuc2027_lite', 'rmuc2027_hd', 'robox', 'playground', 'flat'],
+                        help='Arena scene: rmuc2027 (default: RMUC 2027 V3 + ROBOX V2), rmuc2027_physics/rmuc2027_lite (Fast Collision-only), robox/flat (ROBOX V2 Flat Ground), playground (ROBOX V2 Obstacle testbench)')
     parser.add_argument('--robot', type=str, default=None, choices=['robox', 'mobed'],
                         help='Robot model override: robox (ROBOX V2, 30kg) or mobed (legacy MobED). Auto-detected if omitted.')
     parser.add_argument('--keyframe', type=str, default='home',
-                        help='Spawn location keyframe (rmuc2027: home/home_red, home_blue, test_center, test_platform_top; playground: home, curb_5cm, curb_20cm, plaza, etc.)')
+                        help='Spawn location keyframe (rmuc2027: home/home_red, home_blue, central_passage, test_center, road_red, road_blue, ramp_red, ramp_blue, test_platform_top; playground: home, curb_5cm, curb_20cm, plaza, etc.)')
     parser.add_argument('--climb', type=str, default='normal', choices=['normal', 'stair', 'on', 'off'],
                         help='Climb mode: normal (Mode 1: Paper standard, default), stair (Mode 2: 200mm stair), off')
     parser.add_argument('--model', type=str, default=None, help='Custom MJCF model path')
@@ -220,16 +222,16 @@ def main():
     # 1. Select scene XML
     if args.model:
         xml_path = args.model
-    elif args.arena == 'rmuc2027' and os.path.exists(RMUC2027_LITE_XML):
-        xml_path = RMUC2027_LITE_XML
-    elif args.arena == 'rmuc2027_hd' and os.path.exists(RMUC2027_HD_XML):
-        xml_path = RMUC2027_HD_XML
+    elif args.arena in ['rmuc2027', 'rmuc2027_hd'] and os.path.exists(RMUC2027_XML):
+        xml_path = RMUC2027_XML
+    elif args.arena in ['rmuc2027_physics', 'rmuc2027_lite'] and os.path.exists(RMUC2027_PHYSICS_XML):
+        xml_path = RMUC2027_PHYSICS_XML
     elif args.arena in ['robox', 'flat'] and os.path.exists(ROBOX_V2_XML):
         xml_path = ROBOX_V2_XML
     elif args.arena == 'playground' and os.path.exists(PLAYGROUND_XML):
         xml_path = PLAYGROUND_XML
-    elif os.path.exists(RMUC2027_LITE_XML):
-        xml_path = RMUC2027_LITE_XML
+    elif os.path.exists(RMUC2027_XML):
+        xml_path = RMUC2027_XML
     elif os.path.exists(PLAYGROUND_XML):
         xml_path = PLAYGROUND_XML
     else:
@@ -331,7 +333,7 @@ def main():
     glfw.set_scroll_callback(window, camera_ctrl.on_scroll)
 
     # Initialize MuJoCo visualization context
-    scn = mujoco.MjvScene(model, maxgeom=2000)
+    scn = mujoco.MjvScene(model, maxgeom=max(4000, model.ngeom * 2))
     con = mujoco.MjrContext(model, mujoco.mjtFontScale.mjFONTSCALE_150)
 
     # 5. Initialize Teleop Commander

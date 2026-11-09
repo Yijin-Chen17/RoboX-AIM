@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="RMUC2027_v3_rover_test">
+  <compiler angle="radian" autolimits="true" fusestatic="true" />
+  <option timestep=".002" integrator="implicitfast" solver="Newton" iterations="30" tolerance="1e-8" cone="pyramidal" gravity="0 0 -9.81" />
+  <visual>
+    <global offwidth="1920" offheight="1080" azimuth="135" elevation="-55" />
+    <quality shadowsize="2048" />
+    <headlight ambient=".3 .3 .3" diffuse=".4 .4 .4" specular=".03 .03 .03" />
+    <rgba haze=".94 .96 .98 1" />
+    <map znear=".005" zfar="20" fogstart="10" fogend="20" />
+  </visual>
+  <statistic center="0 0 .6" extent="17" />
+  <include file="field.xml" />
+  <worldbody>
+    <light name="field_light" pos="-6 -7 18" dir=".15 .2 -1" directional="true" castshadow="false" diffuse=".25 .25 .25" />
+    <camera name="overview" pos="-26 -29 31" xyaxes=".7448 -.6673 0 .411 .4588 .7878" />
+    <body name="test_rover" pos="0 -1.6 1.5" euler="0 0 0">
+      <freejoint name="rover_free" />
+      <geom name="rover_chassis" type="box" size=".32 .20 .065" mass="16" rgba=".93 .68 .18 1" contype="2" conaffinity="1" friction=".8 .005 .0001" />
+      <body name="wheel_fl" pos="0.23 0.25 -0.12">
+        <joint name="axle_fl" type="hinge" axis="0 1 0" damping=".025" armature=".015" />
+        <geom name="tire_fl" type="cylinder" size=".10 .035" quat=".7071067811865476 .7071067811865476 0 0" mass="1" rgba=".12 .14 .17 1" contype="2" conaffinity="1" condim="4" friction="1.15 .005 .0001" solref=".006 1" />
+      </body>
+      <body name="wheel_fr" pos="0.23 -0.25 -0.12">
+        <joint name="axle_fr" type="hinge" axis="0 1 0" damping=".025" armature=".015" />
+        <geom name="tire_fr" type="cylinder" size=".10 .035" quat=".7071067811865476 .7071067811865476 0 0" mass="1" rgba=".12 .14 .17 1" contype="2" conaffinity="1" condim="4" friction="1.15 .005 .0001" solref=".006 1" />
+      </body>
+      <body name="wheel_rl" pos="-0.23 0.25 -0.12">
+        <joint name="axle_rl" type="hinge" axis="0 1 0" damping=".025" armature=".015" />
+        <geom name="tire_rl" type="cylinder" size=".10 .035" quat=".7071067811865476 .7071067811865476 0 0" mass="1" rgba=".12 .14 .17 1" contype="2" conaffinity="1" condim="4" friction="1.15 .005 .0001" solref=".006 1" />
+      </body>
+      <body name="wheel_rr" pos="-0.23 -0.25 -0.12">
+        <joint name="axle_rr" type="hinge" axis="0 1 0" damping=".025" armature=".015" />
+        <geom name="tire_rr" type="cylinder" size=".10 .035" quat=".7071067811865476 .7071067811865476 0 0" mass="1" rgba=".12 .14 .17 1" contype="2" conaffinity="1" condim="4" friction="1.15 .005 .0001" solref=".006 1" />
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <velocity name="drive_fl" joint="axle_fl" kv="3" ctrlrange="-25 25" forcerange="-6 6" />
+    <velocity name="drive_fr" joint="axle_fr" kv="3" ctrlrange="-25 25" forcerange="-6 6" />
+    <velocity name="drive_rl" joint="axle_rl" kv="3" ctrlrange="-25 25" forcerange="-6 6" />
+    <velocity name="drive_rr" joint="axle_rr" kv="3" ctrlrange="-25 25" forcerange="-6 6" />
+  </actuator>
+  <keyframe />
+</mujoco>

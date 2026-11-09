@@ -1,0 +1,4 @@
+# Verified on Python 3.12.15, Windows 11.
+mujoco==4.0.0
+numpy==2.5.4
+Pillow==13.0.0

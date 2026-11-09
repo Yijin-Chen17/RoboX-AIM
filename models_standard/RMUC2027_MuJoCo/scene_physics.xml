@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="RMUC2027_v3_field">
+  <compiler angle="radian" autolimits="true" fusestatic="true" discardvisual="true" />
+  <option timestep=".002" integrator="implicitfast" solver="Newton" iterations="30" tolerance="1e-8" cone="pyramidal" gravity="0 0 -9.81" />
+  <visual>
+    <global offwidth="1920" offheight="1080" azimuth="135" elevation="-55" />
+    <quality shadowsize="2048" />
+    <headlight ambient=".3 .3 .3" diffuse=".4 .4 .4" specular=".03 .03 .03" />
+    <rgba haze=".94 .96 .98 1" />
+    <map znear=".005" zfar="20" fogstart="10" fogend="20" />
+  </visual>
+  <statistic center="0 0 .6" extent="17" />
+  <include file="field.xml" />
+  <worldbody>
+    <light name="field_light" pos="-6 -7 18" dir=".15 .2 -1" directional="true" castshadow="false" diffuse=".25 .25 .25" />
+    <camera name="overview" pos="-26 -29 31" xyaxes=".7448 -.6673 0 .411 .4588 .7878" />
+  </worldbody>
+</mujoco>

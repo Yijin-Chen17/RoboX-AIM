@@ -1,0 +1,402 @@
+{
+  "status": "passed",
+  "reference": "Approved collision_draft.json v3; no further simplification",
+  "collision_geometries_checked": 1365,
+  "max_compiled_vertex_difference_mm": 0.0005549230663146464,
+  "max_compiled_bounds_difference_mm": 0.0005377356000479949,
+  "vertical_ray_samples": 5105,
+  "missing_or_extra_ray_hits": 0,
+  "max_interior_ray_height_difference_mm": 7.778838417848988e-05,
+  "rms_interior_ray_height_difference_mm": 3.8123448853936865e-06,
+  "max_raw_ray_height_difference_including_exact_edges_mm": 399.13677664783665,
+  "ray_groups": {
+    "random": {
+      "samples": 1800,
+      "boundary_cases": 0,
+      "max_interior_error_mm": 7.778838417848988e-05
+    },
+    "road": {
+      "samples": 2402,
+      "boundary_cases": 0,
+      "max_interior_error_mm": 1.118099829389152e-05
+    },
+    "step_center": {
+      "samples": 301,
+      "boundary_cases": 26,
+      "max_interior_error_mm": 1.9196535472332243e-05
+    },
+    "step_sides": {
+      "samples": 602,
+      "boundary_cases": 0,
+      "max_interior_error_mm": 1.9196536804599873e-05
+    }
+  },
+  "boundary_cases": [
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -2.9426666666666668
+      ],
+      "expected": 0.5326370019632387,
+      "actual": 0.33256843879505293,
+      "hit": 784,
+      "error_mm": 200.0685631681858,
+      "distance_to_projected_wall_mm": 0.0,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 7.041134231222657e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -2.955
+      ],
+      "expected": 0.5323140422638857,
+      "actual": 0.13317726561604903,
+      "hit": 9,
+      "error_mm": 399.13677664783665,
+      "distance_to_projected_wall_mm": 0.0,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 7.483112685058302e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.2756666666666665
+      ],
+      "expected": 0.7239856485785715,
+      "actual": 1.0240884894759992,
+      "hit": 807,
+      "error_mm": 300.10284089742765,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.726677715893857e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.288
+      ],
+      "expected": 0.7236626888792165,
+      "actual": 1.0237655293407126,
+      "hit": 807,
+      "error_mm": 300.10284046149616,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.724180380222265e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.300333333333333
+      ],
+      "expected": 0.7233397291798616,
+      "actual": 1.023442569205426,
+      "hit": 807,
+      "error_mm": 300.10284002556455,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.721680491037716e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.3126666666666664
+      ],
+      "expected": 0.7230167694805065,
+      "actual": 1.0231196090701404,
+      "hit": 807,
+      "error_mm": 300.1028395896339,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.7191831553661245e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.325
+      ],
+      "expected": 0.7226938097811515,
+      "actual": 1.022796648934853,
+      "hit": 807,
+      "error_mm": 300.1028391537015,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.716684043337693e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.3373333333333335
+      ],
+      "expected": 0.7223708500817966,
+      "actual": 1.022473688799567,
+      "hit": 807,
+      "error_mm": 300.10283871777034,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.714185930509984e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.349666666666667
+      ],
+      "expected": 0.7220478903824415,
+      "actual": 1.0221507286642812,
+      "hit": 807,
+      "error_mm": 300.1028382818397,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.711688594838392e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.362
+      ],
+      "expected": 0.7217249306830866,
+      "actual": 1.0218277685289938,
+      "hit": 807,
+      "error_mm": 300.1028378459072,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.709189593832264e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.3743333333333334
+      ],
+      "expected": 0.7214019709837316,
+      "actual": 1.0215048083937086,
+      "hit": 807,
+      "error_mm": 300.102837409977,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.706691369982252e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.3866666666666667
+      ],
+      "expected": 0.7210790112843766,
+      "actual": 1.0211818482584216,
+      "hit": 807,
+      "error_mm": 300.10283697404503,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.704192257953821e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.399
+      ],
+      "expected": 0.7207560515850217,
+      "actual": 1.020858888123135,
+      "hit": 807,
+      "error_mm": 300.1028365381134,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.7016950333045315e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.4113333333333333
+      ],
+      "expected": 0.7204330918856666,
+      "actual": 1.020535927987849,
+      "hit": 807,
+      "error_mm": 300.1028361021824,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.699195033097681e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.4236666666666666
+      ],
+      "expected": 0.7201101321863117,
+      "actual": 1.0202129678525624,
+      "hit": 807,
+      "error_mm": 300.1028356662507,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.696697697426089e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.436
+      ],
+      "expected": 0.7197871724869567,
+      "actual": 1.019890007717276,
+      "hit": 807,
+      "error_mm": 300.1028352303192,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.694200472776799e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.4483333333333333
+      ],
+      "expected": 0.7194642127876016,
+      "actual": 1.0195670475819902,
+      "hit": 807,
+      "error_mm": 300.10283479438857,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.6917004725699485e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.4606666666666666
+      ],
+      "expected": 0.7191412530882467,
+      "actual": 1.0192440874467028,
+      "hit": 807,
+      "error_mm": 300.1028343584561,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.689203247920659e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.473
+      ],
+      "expected": 0.7188182933888917,
+      "actual": 0.9188868528750769,
+      "hit": 804,
+      "error_mm": 200.0685594861852,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.686704135892228e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.485333333333333
+      ],
+      "expected": 0.7184953336895368,
+      "actual": 0.9185638932230793,
+      "hit": 804,
+      "error_mm": 200.06855953354253,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.684205912042216e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.4976666666666665
+      ],
+      "expected": 0.7181723739901817,
+      "actual": 0.9182409335710826,
+      "hit": 804,
+      "error_mm": 200.06855958090085,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.681707799214507e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.51
+      ],
+      "expected": 0.7178494142908267,
+      "actual": 0.917917973919085,
+      "hit": 804,
+      "error_mm": 200.0685596282583,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.679209575364496e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.522333333333333
+      ],
+      "expected": 0.7175264545914718,
+      "actual": 0.9175950142670874,
+      "hit": 804,
+      "error_mm": 200.06855967561566,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.676710574358367e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.5346666666666664
+      ],
+      "expected": 0.7172034948921168,
+      "actual": 0.9172720546150908,
+      "hit": 804,
+      "error_mm": 200.068559722974,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.6742123505083555e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.5469999999999997
+      ],
+      "expected": 0.7168805351927618,
+      "actual": 0.9169490949630932,
+      "hit": 804,
+      "error_mm": 200.06855977033132,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.671715014836764e-06
+    },
+    {
+      "group": "step_center",
+      "xy": [
+        12.0,
+        -3.559333333333333
+      ],
+      "expected": 0.7165575754934068,
+      "actual": 0.9166261353110965,
+      "hit": 804,
+      "error_mm": 200.06855981768967,
+      "distance_to_projected_wall_mm": 1.1939658151050025e-06,
+      "neighbour_interior_rays_checked": 6,
+      "max_neighbour_height_error_mm": 4.669216013830635e-06
+    }
+  ],
+  "boundary_note": "Zero-radius rays exactly on shared vertical edges can select adjacent or underlying source surfaces after float32 mesh storage (sub-micrometre shifts/cracks). Raw discrepancies are preserved above and in each case. Every classified sample was within 5 micrometres of a source wall and all neighbouring interior rays at 10 micrometres agreed. Both center heights matched a nearby source face. The 301-point step section was additionally checked on both sides at x=12 +/- 0.0001 m. Finite-radius contact checks are reported separately in test_results.json.",
+  "removed_instances_absent": true
+}

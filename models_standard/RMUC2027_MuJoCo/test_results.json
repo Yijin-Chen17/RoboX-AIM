@@ -1,0 +1,792 @@
+{
+  "status": "failed",
+  "timestamp": "2026-11-09T14:23:59.886956+08:00",
+  "environment": {
+    "mujoco": "3.12.0",
+    "python": "3.14.6",
+    "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+    "cpu": "arm"
+  },
+  "test_rover": {
+    "mass_kg": 20,
+    "wheel_radius_m": 0.1,
+    "wheel_width_m": 0.07,
+    "wheelbase_m": 0.46,
+    "track_m": 0.5,
+    "chassis_size_m": [
+      0.64,
+      0.4,
+      0.13
+    ],
+    "drive_torque_limit_per_wheel_Nm": 6,
+    "suspension": false,
+    "note": "generic test model; no user robot supplied"
+  },
+  "compiled_models": [
+    {
+      "file": "scene.xml",
+      "compile_s": 0.11904154199874029,
+      "ngeom": 1407,
+      "nmesh": 1394,
+      "nbody": 1,
+      "nq": 0,
+      "collision_geoms": 1365
+    },
+    {
+      "file": "scene_physics.xml",
+      "compile_s": 0.1042217499925755,
+      "ngeom": 1365,
+      "nmesh": 1352,
+      "nbody": 1,
+      "nq": 0,
+      "collision_geoms": 1365
+    },
+    {
+      "file": "rover_test.xml",
+      "compile_s": 0.104173332976643,
+      "ngeom": 1412,
+      "nmesh": 1394,
+      "nbody": 6,
+      "nq": 11,
+      "collision_geoms": 1365
+    }
+  ],
+  "rover_routes": [
+    {
+      "name": "flat",
+      "passed": true,
+      "target_distance_m": 4.5,
+      "progress_m": 4.52852565815271,
+      "simulation_s": 9.239999999999755,
+      "max_lateral_error_m": 0.005694296310360336,
+      "max_contact_penetration_mm": 1.6923236431085598,
+      "min_body_up_cosine": 0.9996572050950584,
+      "max_contacts": 20,
+      "contact_step_fraction": 0.9926406926406927,
+      "chassis_contact_steps": 0,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "final_position_m": [
+        -6.47147434184729,
+        -2.002602298490853,
+        0.3781859797108528
+      ],
+      "body_height_range_m": [
+        0.37810492528030537,
+        0.37835042389030177
+      ]
+    },
+    {
+      "name": "central_passage",
+      "passed": false,
+      "target_distance_m": 6.6,
+      "progress_m": 6.407773685274526,
+      "simulation_s": 30.499999999993975,
+      "max_lateral_error_m": 0.019752925944485078,
+      "max_contact_penetration_mm": 1.5682081618414412,
+      "min_body_up_cosine": 0.9512404552727889,
+      "max_contacts": 45,
+      "contact_step_fraction": 0.9947540983606558,
+      "chassis_contact_steps": 0,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "final_position_m": [
+        -3.004701948616638,
+        3.107773685274526,
+        0.6564497042442634
+      ],
+      "body_height_range_m": [
+        0.6430251522359259,
+        0.7235650018528135
+      ]
+    },
+    {
+      "name": "ramp_red",
+      "passed": true,
+      "target_distance_m": 2.8000000000000003,
+      "progress_m": 2.8206063669341774,
+      "simulation_s": 8.135999999999386,
+      "max_lateral_error_m": 0.07293726571981374,
+      "max_contact_penetration_mm": 1.567424820831992,
+      "min_body_up_cosine": 0.925943926643291,
+      "max_contacts": 22,
+      "contact_step_fraction": 0.9823008849557522,
+      "chassis_contact_steps": 0,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "final_position_m": [
+        6.072885803163294,
+        -5.220606366934177,
+        0.4929878560134859
+      ],
+      "body_height_range_m": [
+        0.3612350587497125,
+        0.5268981180683888
+      ]
+    },
+    {
+      "name": "ramp_blue",
+      "passed": true,
+      "target_distance_m": 2.8000000000000003,
+      "progress_m": 2.820919476664739,
+      "simulation_s": 8.137999999999387,
+      "max_lateral_error_m": 0.07454755248407263,
+      "max_contact_penetration_mm": 1.5683721138170226,
+      "min_body_up_cosine": 0.9259157177492321,
+      "max_contacts": 22,
+      "contact_step_fraction": 0.9845170803637258,
+      "chassis_contact_steps": 0,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "final_position_m": [
+        -6.074490370484023,
+        5.220919476664739,
+        0.49297955768872453
+      ],
+      "body_height_range_m": [
+        0.3612367974789872,
+        0.526928951177548
+      ]
+    },
+    {
+      "name": "road_red",
+      "passed": true,
+      "target_distance_m": 3.7,
+      "progress_m": 3.716447811751011,
+      "simulation_s": 11.124000000000384,
+      "max_lateral_error_m": 0.008507817845123,
+      "max_contact_penetration_mm": 1.692203259001665,
+      "min_body_up_cosine": 0.9880786478792958,
+      "max_contacts": 33,
+      "contact_step_fraction": 0.9890327220424308,
+      "chassis_contact_steps": 0,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "final_position_m": [
+        9.416447811751011,
+        6.3068223937789805,
+        0.4645444697935426
+      ],
+      "body_height_range_m": [
+        0.4643154095858367,
+        0.534004122031561
+      ]
+    },
+    {
+      "name": "road_blue",
+      "passed": true,
+      "target_distance_m": 3.7,
+      "progress_m": 3.7163315482384762,
+      "simulation_s": 11.11200000000038,
+      "max_lateral_error_m": 0.008721518469552159,
+      "max_contact_penetration_mm": 1.6922032941685348,
+      "min_body_up_cosine": 0.9880806044302044,
+      "max_contacts": 29,
+      "contact_step_fraction": 0.9886609071274298,
+      "chassis_contact_steps": 0,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "final_position_m": [
+        -9.416331548238476,
+        -6.307041570566463,
+        0.46453879768146794
+      ],
+      "body_height_range_m": [
+        0.46436557217068697,
+        0.533986403830982
+      ]
+    }
+  ],
+  "vertical_contact_probes": [
+    {
+      "name": "ground_red",
+      "position_xy_m": [
+        10,
+        2
+      ],
+      "terrain_height_m": 0.1581849185061026,
+      "center_ray_height_m": 0.1581849185061026,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.19319691624302,
+      "actual_center_z_m": 0.19316808195641424,
+      "error_mm": 0.028834286605744497,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "ground_blue",
+      "position_xy_m": [
+        -10,
+        -2
+      ],
+      "terrain_height_m": 0.1581848277436828,
+      "center_ray_height_m": 0.1581848277436828,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.1931968254819593,
+      "actual_center_z_m": 0.19316799033851922,
+      "error_mm": 0.02883514344007021,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "removed_facility_red",
+      "position_xy_m": [
+        12.8,
+        6.5
+      ],
+      "terrain_height_m": 0.040348272417917386,
+      "center_ray_height_m": 0.040348272417917386,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.07536027015483475,
+      "actual_center_z_m": 0.07533143519022154,
+      "error_mm": 0.02883496461321411,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "removed_facility_blue",
+      "position_xy_m": [
+        -12.8,
+        -6.5
+      ],
+      "terrain_height_m": 0.040348175245671136,
+      "center_ray_height_m": 0.040348175245671136,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.07536017298394762,
+      "actual_center_z_m": 0.07533133776488166,
+      "error_mm": 0.028835219065964646,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "central_left",
+      "position_xy_m": [
+        -3,
+        -2
+      ],
+      "terrain_height_m": 0.45718447863468015,
+      "center_ray_height_m": 0.45718447863468015,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.49219647637171504,
+      "actual_center_z_m": 0.4921676411165299,
+      "error_mm": 0.028835255185155617,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "central_right",
+      "position_xy_m": [
+        3,
+        2
+      ],
+      "terrain_height_m": 0.4571844823045099,
+      "center_ray_height_m": 0.4571844823045099,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.4921964800396904,
+      "actual_center_z_m": 0.49216764637465976,
+      "error_mm": 0.02883366503064755,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "trapezoid_red",
+      "position_xy_m": [
+        6,
+        -5
+      ],
+      "terrain_height_m": 0.2786952739042956,
+      "center_ray_height_m": 0.2786952739042956,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.3137072716431593,
+      "actual_center_z_m": 0.3136784375870002,
+      "error_mm": 0.0288340561591105,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "trapezoid_blue",
+      "position_xy_m": [
+        -6,
+        5
+      ],
+      "terrain_height_m": 0.27869527324475385,
+      "center_ray_height_m": 0.27869527324475385,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.31370727098261747,
+      "actual_center_z_m": 0.31367843572742893,
+      "error_mm": 0.028835255188541797,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "road_flat_red",
+      "position_xy_m": [
+        5.8,
+        6.3
+      ],
+      "terrain_height_m": 0.24465357497415052,
+      "center_ray_height_m": 0.24465357497415052,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.27966557271038656,
+      "actual_center_z_m": 0.27963673745520196,
+      "error_mm": 0.028835255184600506,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "road_flat_blue",
+      "position_xy_m": [
+        -5.8,
+        -6.3
+      ],
+      "terrain_height_m": 0.24465357498081364,
+      "center_ray_height_m": 0.24465357498081364,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.27966557271704967,
+      "actual_center_z_m": 0.27963673746186474,
+      "error_mm": 0.028835255184933573,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "step_lower_red",
+      "position_xy_m": [
+        12,
+        -2.9
+      ],
+      "terrain_height_m": 0.5337542624386256,
+      "center_ray_height_m": 0.5337542624386256,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.5687662602086385,
+      "actual_center_z_m": 0.5687374249534,
+      "error_mm": 0.028835255238557345,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "step_middle_red",
+      "position_xy_m": [
+        12,
+        -4.5
+      ],
+      "terrain_height_m": 0.8919939117355895,
+      "center_ray_height_m": 0.8919939117355895,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.9270059094660292,
+      "actual_center_z_m": 0.9269770782975171,
+      "error_mm": 0.028831168512155614,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "step_upper_red",
+      "position_xy_m": [
+        12,
+        -6.0
+      ],
+      "terrain_height_m": 1.1528178746054651,
+      "center_ray_height_m": 1.1528178746054651,
+      "height_reference": "center ray",
+      "expected_center_z_m": 1.1878298721323108,
+      "actual_center_z_m": 1.1878010368814014,
+      "error_mm": 0.028835250909464705,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "step_lower_blue",
+      "position_xy_m": [
+        -12,
+        2.9
+      ],
+      "terrain_height_m": 0.5337542733546359,
+      "center_ray_height_m": 0.5337542733546359,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.5687662710582553,
+      "actual_center_z_m": 0.5687374358031453,
+      "error_mm": 0.02883525510999352,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "step_middle_blue",
+      "position_xy_m": [
+        -12,
+        4.5
+      ],
+      "terrain_height_m": 0.8919939090569162,
+      "center_ray_height_m": 0.8919939090569162,
+      "height_reference": "center ray",
+      "expected_center_z_m": 0.9270059067949463,
+      "actual_center_z_m": 0.9269770745113444,
+      "error_mm": 0.02883228360195389,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "step_upper_blue",
+      "position_xy_m": [
+        -12,
+        6.0
+      ],
+      "terrain_height_m": 1.1528178746502782,
+      "center_ray_height_m": 1.1528178746502782,
+      "height_reference": "center ray",
+      "expected_center_z_m": 1.1878298721771239,
+      "actual_center_z_m": 1.187801036926217,
+      "error_mm": 0.02883525090680017,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "seam_lower",
+      "position_xy_m": [
+        12,
+        -2.9426666666666668
+      ],
+      "terrain_height_m": 0.5326369949209582,
+      "center_ray_height_m": 0.33256843879505293,
+      "height_reference": "upper adjacent surface at x +/- 0.1 mm",
+      "expected_center_z_m": 0.5676489926909711,
+      "actual_center_z_m": 0.5676201574374699,
+      "error_mm": 0.028835253501280356,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "seam_underlying_ray",
+      "position_xy_m": [
+        12,
+        -2.955
+      ],
+      "terrain_height_m": 0.5323140347796285,
+      "center_ray_height_m": 0.13317726562886723,
+      "height_reference": "upper adjacent surface at x +/- 0.1 mm",
+      "expected_center_z_m": 0.5673260325496414,
+      "actual_center_z_m": 0.5672971972961205,
+      "error_mm": 0.028835253520931303,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "seam_upper",
+      "position_xy_m": [
+        12,
+        -3.35
+      ],
+      "terrain_height_m": 1.0221420000097607,
+      "center_ray_height_m": 1.0221420000119812,
+      "height_reference": "upper adjacent surface at x +/- 0.1 mm",
+      "expected_center_z_m": 1.057153997779325,
+      "actual_center_z_m": 1.0571251625263107,
+      "error_mm": 0.028835253014225515,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    },
+    {
+      "name": "seam_middle",
+      "position_xy_m": [
+        12,
+        -3.55
+      ],
+      "terrain_height_m": 0.9168705372064272,
+      "center_ray_height_m": 0.9168705372098849,
+      "height_reference": "upper adjacent surface at x +/- 0.1 mm",
+      "expected_center_z_m": 0.9518825349400895,
+      "actual_center_z_m": 0.9518536996883944,
+      "error_mm": 0.028835251695058517,
+      "contacts": 1,
+      "warnings": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "passed": true
+    }
+  ],
+  "step_obstacle": {
+    "name": "retained_step_blocks_rover",
+    "passed": true,
+    "wall_contact_frames": 1372,
+    "first_wall_contact_m": [
+      11.999954131125218,
+      -2.325801949096736,
+      0.36980453951904496
+    ],
+    "minimum_y_m": -2.327767916865058,
+    "step_front_y_m": -2.6522,
+    "max_contact_penetration_mm": 1.5689043905085185,
+    "warnings": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "benchmark": {
+    "dynamic_model": "one generic 20 kg four-wheel rover",
+    "rendering": false,
+    "control": "constant wheel speed; identical settled states restored between 1 s trials",
+    "timing": "mj_step only; state restore, forward, logging and compilation excluded",
+    "timestep_s": 0.002,
+    "collision_geoms": 1365,
+    "discardvisual": true,
+    "workloads": [
+      {
+        "name": "central_contact",
+        "passed": true,
+        "simulation_s": 60.0,
+        "wall_s": 0.9689943351550028,
+        "real_time_factor": 61.919866632039955,
+        "mean_step_us": 32.299811171833426,
+        "median_trial_real_time_factor": 62.84400402712419,
+        "contacts_observed_min_max": [
+          18,
+          20
+        ],
+        "warning_count": 0
+      },
+      {
+        "name": "road_bump_contact",
+        "passed": true,
+        "simulation_s": 60.0,
+        "wall_s": 1.6342050959938206,
+        "real_time_factor": 36.71509784609488,
+        "mean_step_us": 54.47350319979402,
+        "median_trial_real_time_factor": 36.90175855369918,
+        "contacts_observed_min_max": [
+          9,
+          21
+        ],
+        "warning_count": 0
+      }
+    ]
+  },
+  "rendered_images": [],
+  "limits": [
+    "Friction is an assumed tunable parameter, not a measured material property.",
+    "The retained high steps are obstacles for this rover, not claimed climbable.",
+    "CPU timing is one environment without rendering, not GPU training throughput.",
+    "These tests do not establish clearance or behaviour for a different robot."
+  ]
+}

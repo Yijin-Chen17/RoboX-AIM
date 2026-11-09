@@ -55,8 +55,10 @@ python3 mobed_sim_native.py
 
 - **场景选项**（`--arena`）：
   ```bash
-  python3 mobed_sim_native.py --arena playground
-  python3 mobed_sim_native.py --arena flat
+  python3 mobed_sim_native.py --arena rmuc2027          # 默认：RMUC 2027 完整高精度场地 + ROBOX V2
+  python3 mobed_sim_native.py --arena rmuc2027_physics  # RMUC 2027 纯碰撞加速模式
+  python3 mobed_sim_native.py --arena playground        # 障碍台阶测试台
+  python3 mobed_sim_native.py --arena flat              # 平地
   ```
 - **模式选项**（`--climb`）：
   ```bash
@@ -66,7 +68,12 @@ python3 mobed_sim_native.py
   ```
 - **初始位置/状态**（`--keyframe`）：
   ```bash
-  python3 mobed_sim_native.py --keyframe home_blue
+  python3 mobed_sim_native.py --keyframe home_red           # 红方基地出生点（朝向场地中心）
+  python3 mobed_sim_native.py --keyframe home_blue          # 蓝方基地出生点（朝向场地中心）
+  python3 mobed_sim_native.py --keyframe central_passage    # 中央隧道入口
+  python3 mobed_sim_native.py --keyframe road_red           # 红方起伏路
+  python3 mobed_sim_native.py --keyframe ramp_red           # 红方飞坡
+  python3 mobed_sim_native.py --keyframe test_platform_top  # 中央高地平台
   ```
 
 ---
