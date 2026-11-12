@@ -38,9 +38,13 @@ void ClimbGeometryEstimator::update(
     const Eigen::Vector4d& target_wheel_vels,
     const Eigen::Vector3d& omega_body,
     double target_step_height,
-    double dt)
+    double dt,
+    const Eigen::Vector4d& eccentric_rates)
 {
     if (dt <= 0.0 || dt > 0.5) return;
+
+    geometry_.eccentric_rolling_velocity =
+        params_.l_ecc * current_ecc_angles.array().cos() * eccentric_rates.array();
 
     // 1. Contact heights in gravity-aligned world frame
     double f_h = 0.5 * (contact_points_world[FL].z() + contact_points_world[FR].z());
@@ -110,9 +114,10 @@ void ClimbGeometryEstimator::update(
     const bool rear_load_stable = geometry_.rear_contact_confidence > 0.65;
     geometry_.front_platform_contact =
         front_load_stable &&
-        geometry_.front_height > effective_h - platform_height_tolerance &&
-        std::abs(geometry_.front_z_vel) < 0.15 &&
-        std::abs(geometry_.nose_up_pitch_rate) < 0.30;
+        (geometry_.front_height > effective_h - platform_height_tolerance ||
+         geometry_.delta_height > 0.12) &&
+        std::abs(geometry_.front_z_vel) < 0.18 &&
+        std::abs(geometry_.nose_up_pitch_rate) < 0.35;
     geometry_.rear_platform_contact =
         rear_load_stable &&
         geometry_.rear_height > effective_h - platform_height_tolerance &&

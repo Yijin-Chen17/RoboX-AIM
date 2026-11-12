@@ -48,9 +48,9 @@
 
       <!-- Two Underbody Slider Rods Collision (original length, X in [-0.130, 0.375], Y = +-0.0776, Z in [-0.0275, 0.000]) -->
       <geom name="chassis_bottom_rod_L" type="box" size="0.2525 0.0055 0.01375" pos="0.1225 0.0776 -0.01375"
-            contype="1" conaffinity="1" priority="2" friction="0.2 0.001 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+            contype="1" conaffinity="1" priority="2" friction="0.05 0.001 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
       <geom name="chassis_bottom_rod_R" type="box" size="0.2525 0.0055 0.01375" pos="0.1225 -0.0776 -0.01375"
-            contype="1" conaffinity="1" priority="2" friction="0.2 0.001 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+            contype="1" conaffinity="1" priority="2" friction="0.05 0.001 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
 
       <!-- ======================================================== -->
       <!-- FRONT-LEFT (LF) LEG MODULE                               -->
@@ -163,6 +163,7 @@
     <key name="plaza" qpos="0.0 0.0 0.228 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
     <key name="ramp" qpos="2.0 0.8 0.228 1 0 0 0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
     <key name="bumps" qpos="-2.0 0.8 0.228 0 0 0 1 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
+    <key name="rmuc_step" qpos="5.0 2.8 0.228 0.7071068 0 0 0.7071068 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0 0.0 3.14159265 0.0" />
   </keyframe>
 
   <!-- Actuators: Calibrated for ROBOX V2 (30.00 kg Standard) -->

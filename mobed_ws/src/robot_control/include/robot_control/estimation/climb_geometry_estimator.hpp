@@ -38,6 +38,7 @@ struct ClimbGeometry {
     double rear_contact_confidence = 0.0;
     bool front_platform_contact = false;
     bool rear_platform_contact = false;
+    Eigen::Vector4d eccentric_rolling_velocity = Eigen::Vector4d::Zero();  // m/s in wheel frame
 };
 
 /**
@@ -59,7 +60,8 @@ public:
                 const Eigen::Vector4d& target_wheel_vels,
                 const Eigen::Vector3d& omega_body,
                 double target_step_height,
-                double dt);
+                double dt,
+                const Eigen::Vector4d& eccentric_rates = Eigen::Vector4d::Zero());
 
     void update(const BodyState& body_state,
                 const std::array<Eigen::Vector3d, NUM_LEGS>& contact_points_world,

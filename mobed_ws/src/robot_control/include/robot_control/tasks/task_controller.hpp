@@ -25,8 +25,8 @@ enum class ClimbState : int {
     REAR_BELLY_REST       = 3, // 后底盘搁置: 前轮制动, 后偏心折叠至 -1.20rad, 贴靠台阶角 (0.35s)
     REAR_VAULT_LOOP       = 4, // 后轮空中甩翻: 前轮拖车 0.38m/s, 后轮空中轻甩 -1.20 -> -4.65rad (0.30s)
     REAR_CREEP_ADVANCE    = 5, // 四轮爬行: 前行 50mm 完全脱离台阶边缘 (0.30s)
-    POST_CLIMB_RESET      = 6, // 同步复位: 四腿平滑复位至最高站姿 210.5mm 间隙 (0.50s)
-    CLIMBED_RUN           = 7, // 平台疾驰: 锁定最高站姿, 100% 手动操控
+    POST_CLIMB_RESET      = 6, // Legacy entry into platform stance recovery
+    CLIMBED_RUN           = 7, // Extend the eccentric arms before returning control
     // Backward-compatible aliases
     FRONT_VAULT_180       = 1,
     VAULT_FRONT           = 1,
@@ -105,22 +105,23 @@ struct TaskControllerParams {
     // Event-driven stair FSM guards. Timers are safety bounds, not the
     // normal transition mechanism.
     double front_climb_min_time = 0.80;
-    double front_climb_max_time = 2.00;
+    double front_climb_max_time = 2.20;
     double straddle_min_time = 0.80;
     double straddle_max_time = 2.00;
+    double rear_lift_min_advance = 0.02; // m of net advance after front landing (early rear lift at full speed)
     double rear_lift_min_time = 0.80;
     double rear_lift_max_time = 2.00;
     double rear_lift_trigger_distance = 0.12;
 
     // 180-deg stair climb: eccentric arms rotate 0 -> -pi rad
     double rear_landing_angle = -3.141592653589793;  // -pi rad
-    double front_landing_angle = -3.141592653589793 - 0.35; // -pi - 20 deg forward lean onto plateau (providing 12 Nm forward thrust)
-    double rear_vault_min_time = 0.30;
+    double front_landing_angle = -3.141592653589793 - 0.48; // -pi - 27.5 deg forward lean onto plateau (deeper lip reach & 12 Nm lever lift)
+    double rear_climb_assist_angle = 0.28; // rad (+16 deg rear eccentric forward push & nose-up pitch assist during front lip climb)
+    double rear_vault_min_time = 0.02;
     double rear_vault_max_time = 2.00;
-    double post_reset_min_time = 0.15;
-    double post_reset_max_time = 0.50;
+    double stand_up_timeout = 1.10;
 
-    double climb_confirm_time = 0.10;
+    double climb_confirm_time = 0.04;
     double climb_max_pitch = 0.75;       // rad, hard safety limit
     double climb_max_roll = 0.55;        // rad, hard safety limit
     double climb_max_slip_ratio = 0.97;
@@ -179,9 +180,15 @@ public:
     void setCurbHeight(double height) {
         params_.target_curb_height = std::clamp(height, 0.04, 0.22);
     }
-    double getCurbHeight() const { return params_.target_curb_height; }
+    double getCurbHeight() const {
+        return params_.climb_mode == ClimbMode::STAIR_200MM
+            ? kStairHeight : params_.target_curb_height;
+    }
 
     void setClimbMode(ClimbMode mode) {
+        if (params_.climb_mode != mode) {
+            has_climbed_ = false;
+        }
         params_.climb_mode = mode;
     }
     ClimbMode getClimbMode() const { return params_.climb_mode; }
@@ -214,6 +221,10 @@ public:
     const std::array<SingleLegFSM, NUM_LEGS>& getLegFSMs() const { return leg_fsms_; }
 
 private:
+    static constexpr double kStairHeight = 0.20;
+    bool rearAxleOnPlatform(const estimation::ClimbGeometry& geometry,
+                           const Eigen::Vector4d& eccentric) const;
+
     TaskControllerParams params_;
     ClimbState state_ = ClimbState::IDLE;
 

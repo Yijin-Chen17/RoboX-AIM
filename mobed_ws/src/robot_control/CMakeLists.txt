@@ -93,6 +93,10 @@ if(BUILD_TESTING)
   target_link_libraries(test_spin_drive PRIVATE mobed_kinematics)
   add_test(NAME spin_drive COMMAND test_spin_drive)
 
+  add_executable(test_stair_rear_lift test/test_stair_rear_lift.cpp)
+  target_link_libraries(test_stair_rear_lift PRIVATE mobed_tasks)
+  add_test(NAME stair_rear_lift COMMAND test_stair_rear_lift)
+
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_copyright_FOUND TRUE)
   set(ament_cmake_cpplint_FOUND TRUE)

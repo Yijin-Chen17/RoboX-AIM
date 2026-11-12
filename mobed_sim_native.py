@@ -213,7 +213,7 @@ def main():
     parser.add_argument('--robot', type=str, default=None, choices=['robox', 'mobed'],
                         help='Robot model override: robox (ROBOX V2, 30kg) or mobed (legacy MobED). Auto-detected if omitted.')
     parser.add_argument('--keyframe', type=str, default='home',
-                        help='Spawn location keyframe (rmuc2027: home/home_red, home_blue, central_passage, test_center, road_red, road_blue, ramp_red, ramp_blue, test_platform_top; playground: home, curb_5cm, curb_20cm, plaza, etc.)')
+                        help='Spawn location keyframe (rmuc2027: home/home_red, home_blue, central_passage, test_center, road_red, road_blue, ramp_red, ramp_blue, test_platform_top; playground: home, curb_5cm, curb_10cm, curb_20cm, plaza, ramp, bumps, rmuc_step)')
     parser.add_argument('--climb', type=str, default='normal', choices=['normal', 'stair', 'on', 'off'],
                         help='Climb mode: normal (Mode 1: Paper standard, default), stair (Mode 2: 200mm stair), off')
     parser.add_argument('--model', type=str, default=None, help='Custom MJCF model path')

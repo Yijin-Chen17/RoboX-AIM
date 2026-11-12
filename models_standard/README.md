@@ -14,7 +14,7 @@ This directory contains the standard, calibrated, and active models for the MobE
    - `launch_robox.sh` / `.cmd`: Quick launchers for interactive ROBOX V2 simulation.
 
 3. **`playground/`**: Obstacle & Terrain Testbench
-   - `robot_playground.xml`: Multi-obstacle terrain testbench (5cm/10cm/20cm curbs, stairs, ramps, steps) with ROBOX V2 robot.
-   - `playground_arena.xml`: Analytical geometric collision definitions for all playground terrain obstacles.
+   - `robot_playground.xml`: Multi-obstacle terrain testbench (5cm/10cm/20cm curbs, RMUC 2027 central highland 200mm+150mm two-step stair, ramps, bumps) with ROBOX V2 robot.
+   - `playground_arena.xml`: Analytical and CAD-derived geometric collision definitions for all playground terrain obstacles.
 
 > Note: All models use direct relative paths to shared assets (`robox_v2/meshes`). No symbolic links are used.

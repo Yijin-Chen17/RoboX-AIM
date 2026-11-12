@@ -3,6 +3,21 @@
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.35 0.55 0.75" rgb2="0.82 0.87 0.92" width="512" height="512" />
     <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1="0.66 0.68 0.71" rgb2="0.56 0.58 0.61" />
     <material name="grid_mat" texture="grid" texrepeat="16 16" reflectance="0.08" specular="0.15" />
+
+    <!-- RMUC 2027 Central Highland Two-Step Stair (200mm + 150mm) Exact CAD Meshes -->
+    <mesh name="rmuc_step1_L" vertex="5.000066 3.600000 0.200000 4.146266 3.600000 0.200000 3.009053 4.400000 0.200000 5.000066 4.400000 0.200000 5.000066 3.600000 0.000000 4.146266 3.600000 0.000000 3.009053 4.400000 0.000000 5.000066 4.400000 0.000000" face="3 2 1 3 1 0 5 1 2 5 2 6 4 0 1 4 1 5 7 2 3 7 6 2 7 5 6 7 4 5 7 3 0 7 0 4" inertia="convex" />
+    <mesh name="rmuc_step1_L_lip" vertex="4.141016 3.600000 0.200000 2.998916 4.400000 0.200000 3.009053 4.400000 0.200000 4.146266 3.600000 0.200000 4.141016 3.600000 0.187959 2.998916 4.400000 0.187959 3.009053 4.400000 0.187959 4.146266 3.600000 0.187959" face="4 1 5 4 0 1 2 1 0 2 0 3 6 5 1 6 1 2 7 0 4 7 3 0 7 2 3 7 6 2 7 4 5 7 5 6" inertia="convex" />
+    <mesh name="rmuc_step1_R" vertex="5.000066 3.600000 0.200000 5.000066 4.400000 0.200000 7.403399 4.400000 0.200000 5.560366 3.600000 0.200000 5.000066 3.600000 0.000000 5.000066 4.400000 0.000000 7.403399 4.400000 0.000000 5.560366 3.600000 0.000000" face="5 2 6 5 1 2 5 4 0 5 0 1 3 1 0 3 2 1 7 4 5 7 5 6 7 6 2 7 2 3 7 0 4 7 3 0" inertia="convex" />
+    <mesh name="rmuc_step1_R_lip" vertex="5.560366 3.600000 0.200000 7.403399 4.400000 0.200000 7.408666 4.400000 0.200000 5.565616 3.600000 0.200000 5.560366 3.600000 0.187962 7.403399 4.400000 0.187962 7.408666 4.400000 0.187962 5.565616 3.600000 0.187962" face="3 2 1 3 1 0 5 1 2 5 2 6 7 2 3 7 6 2 4 0 1 4 1 5 4 3 0 4 7 3 4 5 6 4 6 7" inertia="convex" />
+    <mesh name="rmuc_step2_L" vertex="5.000066 4.550000 0.350000 5.000066 4.400000 0.350000 3.505916 4.400000 0.350000 3.505916 4.550000 0.350000 5.000066 4.550000 0.000000 5.000066 4.400000 0.000000 3.505916 4.400000 0.000000 3.505916 4.550000 0.000000" face="5 2 6 5 1 2 5 4 0 5 0 1 3 1 0 3 2 1 7 4 5 7 5 6 7 6 2 7 2 3 7 0 4 7 3 0" inertia="convex" />
+    <mesh name="rmuc_step2_R" vertex="6.494266 4.550000 0.350000 6.494266 4.400000 0.350000 5.000066 4.400000 0.350000 5.000066 4.550000 0.350000 6.494266 4.550000 0.000000 6.494266 4.400000 0.000000 5.000066 4.400000 0.000000 5.000066 4.550000 0.000000" face="3 2 1 3 1 0 5 0 1 5 4 0 7 3 0 7 0 4 6 1 2 6 5 1 6 2 3 6 3 7 6 4 5 6 7 4" inertia="convex" />
+    <mesh name="rmuc_curb_trans_L" vertex="3.454616 4.550000 0.400000 3.505916 4.550000 0.350000 3.505916 4.400000 0.350000 3.454616 4.400000 0.400000 3.454616 4.550000 0.000000 3.505916 4.550000 0.000000 3.505916 4.400000 0.000000 3.454616 4.400000 0.000000" face="5 4 0 5 0 1 3 1 0 3 2 1 6 5 1 6 1 2 7 0 4 7 3 0 7 4 5 7 5 6 7 2 3 7 6 2" inertia="convex" />
+    <mesh name="rmuc_curb_trans_R" vertex="6.494266 4.550000 0.350000 6.545566 4.550000 0.400000 6.545566 4.400000 0.400000 6.494266 4.400000 0.350000 6.494266 4.550000 0.000000 6.545566 4.550000 0.000000 6.545566 4.400000 0.000000 6.494266 4.400000 0.000000" face="3 1 0 3 2 1 6 1 2 6 5 1 6 2 3 6 3 7 4 0 1 4 1 5 4 3 0 4 7 3 4 5 6 4 6 7" inertia="convex" />
+    <mesh name="rmuc_curb_wall_L1" vertex="3.454616 4.400000 0.400000 3.312166 4.486300 0.400000 3.312166 4.550000 0.400000 3.454616 4.550000 0.400000 3.454616 4.400000 0.000000 3.312166 4.486300 0.000000 3.312166 4.550000 0.000000 3.454616 4.550000 0.000000" face="3 2 1 3 1 0 4 0 1 4 1 5 4 3 0 4 7 3 6 1 2 6 5 1 6 2 3 6 3 7 6 4 5 6 7 4" inertia="convex" />
+    <mesh name="rmuc_curb_wall_L2" vertex="3.454616 4.400000 0.400000 3.009053 4.400000 0.400000 2.962426 4.432800 0.400000 2.999876 4.486300 0.400000 3.312166 4.486300 0.400000 3.454616 4.400000 0.000000 3.009053 4.400000 0.000000 2.962426 4.432800 0.000000 2.999876 4.486300 0.000000 3.312166 4.486300 0.000000" face="4 3 2 4 1 0 4 2 1 5 4 0 5 9 4 8 2 3 8 7 2 8 3 4 8 4 9 6 9 5 6 8 9 6 7 8 6 1 2 6 2 7 6 0 1 6 5 0" inertia="convex" />
+    <mesh name="rmuc_curb_wall_L3" vertex="3.044466 4.550000 0.400000 3.306116 4.550000 0.400000 3.306116 4.486300 0.400000 2.999876 4.486300 0.400000 3.044466 4.550000 0.229968 3.306116 4.550000 0.229968 3.306116 4.486300 0.229968 2.999876 4.486300 0.229968" face="1 0 3 1 3 2 6 2 3 6 3 7 6 1 2 6 5 1 4 3 0 4 7 3 4 0 1 4 1 5 4 6 7 4 5 6" inertia="convex" />
+    <mesh name="rmuc_curb_wall_R1" vertex="7.388019 4.535015 0.400000 7.380266 4.531650 0.400000 6.545566 4.400000 0.400000 6.545566 4.550000 0.400000 7.381516 4.550000 0.400000 7.388019 4.535015 0.000000 7.380266 4.531650 0.000000 6.545566 4.400000 0.000000 6.545566 4.550000 0.000000 7.381516 4.550000 0.000000" face="8 7 2 8 2 3 1 4 3 1 3 2 1 0 4 9 4 0 9 0 5 9 3 4 9 8 3 6 7 8 6 9 5 6 8 9 6 0 1 6 5 0 6 2 7 6 1 2" inertia="convex" />
+    <mesh name="rmuc_curb_wall_R2" vertex="7.431966 4.412400 0.400000 7.403399 4.400000 0.400000 6.545566 4.400000 0.400000 7.380266 4.531650 0.400000 7.431966 4.412400 0.000000 7.403399 4.400000 0.000000 6.545566 4.400000 0.000000 7.380266 4.531650 0.000000" face="0 3 2 0 2 1 0 7 3 0 4 7 5 0 1 5 4 0 6 2 3 6 3 7 6 1 2 6 5 1 6 7 4 6 4 5" inertia="convex" />
   </asset>
 
   <worldbody>
@@ -148,5 +163,41 @@
     <!-- 侧方倾角弯道平台 (Banked Corner Pad: X=1.1m, Y=-5.0m, 内倾 6°) -->
     <geom name="z4_banked_curve" type="box" size="0.65 2.2 0.015" pos="1.1 -5.0 0.045" euler="0 -0.105 0"
           rgba="0.55 0.75 0.6 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+
+    <!-- =================================================================== -->
+    <!-- ZONE 5: RMUC 2027 中央高地二级台阶 (NE: X in [2.8, 7.6], Y in [2.3, 7.5]) -->
+    <!-- 1:1 复刻 RMUC2027_MuJoCo 中央高地侧边入口:                              -->
+    <!--   Step 1: 200mm 高, 800mm 深 (Y in [3.60, 4.40])                     -->
+    <!--   Step 2: +150mm 高 (总高 350mm), 150mm 深挡边 (Y in [4.40, 4.55], 宽 2.99m) -->
+    <!--   高地平台: 300mm 高 (越过挡边后下降 50mm, Y in [4.55, 6.15]) + 后方下坡道 -->
+    <!-- =================================================================== -->
+    <geom name="z5_pad" type="box" size="2.4 2.6 0.001" pos="5.2 4.9 0.001" rgba="0.82 0.80 0.75 1" contype="0" conaffinity="0" />
+
+    <!-- Step 1: 200mm high, 800mm deep trapezoidal platform -->
+    <geom name="z5_rmuc_step1_L" type="mesh" mesh="rmuc_step1_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step1_L_lip" type="mesh" mesh="rmuc_step1_L_lip" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step1_R" type="mesh" mesh="rmuc_step1_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step1_R_lip" type="mesh" mesh="rmuc_step1_R_lip" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+
+    <!-- Step 2: +150mm curb (350mm above floor), 150mm deep, 2.988m climbable opening -->
+    <geom name="z5_rmuc_step2_L" type="mesh" mesh="rmuc_step2_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step2_R" type="mesh" mesh="rmuc_step2_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+
+    <!-- Flanking 350mm->400mm transitions & 400mm outer border curbs -->
+    <geom name="z5_rmuc_curb_trans_L" type="mesh" mesh="rmuc_curb_trans_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_trans_R" type="mesh" mesh="rmuc_curb_trans_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_L1" type="mesh" mesh="rmuc_curb_wall_L1" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_L2" type="mesh" mesh="rmuc_curb_wall_L2" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_L3" type="mesh" mesh="rmuc_curb_wall_L3" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_R1" type="mesh" mesh="rmuc_curb_wall_R1" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_R2" type="mesh" mesh="rmuc_curb_wall_R2" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+
+    <!-- Central Highland Inner Deck (300mm high, -50mm below Step 2 curb) -->
+    <geom name="z5_rmuc_deck" type="box" size="2.1605 0.8000 0.1500" pos="5.2118 5.3500 0.1500"
+          rgba="0.69 0.73 0.76 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+
+    <!-- Rear Descent Ramp (300mm -> 0mm, Y in [6.15, 7.35], 14.04 deg) -->
+    <geom name="z5_rmuc_descent_ramp" type="box" size="2.1605 0.618466 0.015" pos="5.2118 6.74636 0.13545" euler="-0.244979 0 0"
+          rgba="0.62 0.67 0.71 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
   </worldbody>
 </mujoco>

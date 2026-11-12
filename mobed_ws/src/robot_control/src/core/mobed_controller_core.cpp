@@ -144,6 +144,8 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
         }
         climb_mode_ = new_climb_mode;
         task_controller_->setClimbMode(climb_mode_);
+        climb_geometry_estimator_->reset();
+        contact_detector_->reset();
         transition_smoother_.start(curr_ecc_angles, curr_wheel_velocities, 0.0, 1.0, 0.60);
     }
 
@@ -204,10 +206,13 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             body_state, contact_points_world, curr_ecc_angles,
             curr_ecc_efforts,
             curr_wheel_velocities, curr_wheel_efforts, prev_target_wheel_,
-            imu.angular_velocity, task_controller_->getCurbHeight(), dt);
+            imu.angular_velocity, task_controller_->getCurbHeight(), dt, curr_ecc_velocities);
     }
 
     const bool e_stop = cmd.e_stop != 0;
+    if (e_stop && task_controller_->isActive()) {
+        task_controller_->abort();
+    }
     const bool spin_available = robot_params_.model_type == RobotModelType::ROBOX_V2 &&
         !is_homing_ && !transition_smoother_.in_transition && !task_controller_->isActive() &&
         climb_mode_ != ClimbMode::STAIR_200MM && imu.angular_velocity.allFinite() &&
@@ -269,10 +274,14 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
         task_controller_->update(
             *contact_detector_, geom, curr_ecc_angles, curr_ecc_efforts, dt, chassis_forward_vel, cmd_vel(0));
         bool is_active = task_controller_->isActive();
-        if (was_active && !is_active) {
-            // Climb completed and exited: reset estimators so next step is clean and fresh!
+        if (was_active != is_active) {
+            // Reset geometry estimator both when a climb completes (active -> IDLE)
+            // and when a new climb starts (IDLE -> active), so ground_baseline_z_
+            // is freshly latched at the exact start of each step climb.
             climb_geometry_estimator_->reset();
-            contact_detector_->reset();
+            if (!is_active) {
+                contact_detector_->reset();
+            }
         }
     }
 
@@ -390,7 +399,8 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     } else if (blend_w > 0.0) {
         for (int i = 0; i < NUM_LEGS; ++i) {
             if (ecc_override_mask[i]) {
-                target_ecc(i) = blend_w * ecc_overrides_vec(i) + (1.0 - blend_w) * target_ecc(i);
+                const double delta = kinematics_->normalize_angle(target_ecc(i) - ecc_overrides_vec(i));
+                target_ecc(i) = ecc_overrides_vec(i) + (1.0 - blend_w) * delta;
             }
         }
     }
@@ -412,13 +422,10 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
 
         bool leg_is_overridden = task_controller_->isActive() && ecc_override_mask[i];
 
-        // Eccentric: direct continuous tracking during climb, shortest-arc unwrapping during normal cruise
+        // Keep the command continuous across successive climbs and revolutions.
         double target_cad = target_ecc(i) * ecc_signs_[i] + ecc_offsets_[i];
-        double continuous_cad = target_cad;
-        if (!leg_is_overridden) {
-            double delta_cad = kinematics_->normalize_angle(target_cad - prev_cad_ecc_[i]);
-            continuous_cad = prev_cad_ecc_[i] + delta_cad;
-        }
+        double delta_cad = kinematics_->normalize_angle(target_cad - prev_cad_ecc_[i]);
+        double continuous_cad = prev_cad_ecc_[i] + delta_cad;
         prev_cad_ecc_[i] = continuous_cad;
         out.ecc_pos[i] = continuous_cad;
 

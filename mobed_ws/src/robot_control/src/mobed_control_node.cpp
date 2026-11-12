@@ -498,7 +498,7 @@ private:
                 curr_ecc_efforts_,
                 curr_wheel_velocities_, curr_wheel_efforts_,
                 prev_target_wheel_, omega_body,
-                task_controller_->getCurbHeight(), dt);
+                task_controller_->getCurbHeight(), dt, curr_ecc_velocities_);
         }
 
         const bool spin_available = robot_params_.model_type == RobotModelType::ROBOX_V2 &&
@@ -720,7 +720,8 @@ private:
         } else if (blend_w > 0.0) {
             for (int i = 0; i < NUM_LEGS; ++i) {
                 if (ecc_override_mask[i]) {
-                    target_ecc(i) = blend_w * ecc_overrides_vec(i) + (1.0 - blend_w) * target_ecc(i);
+                    const double delta = kinematics_->normalize_angle(target_ecc(i) - ecc_overrides_vec(i));
+                    target_ecc(i) = ecc_overrides_vec(i) + (1.0 - blend_w) * delta;
                 }
             }
         }
