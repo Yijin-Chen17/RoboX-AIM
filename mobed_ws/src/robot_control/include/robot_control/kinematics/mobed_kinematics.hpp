@@ -3,7 +3,6 @@
 #include <Eigen/Dense>
 #include <vector>
 #include <cmath>
-#include <tuple>
 #include <iostream>
 #include "robot_control/core/mobed_types.hpp"
 
@@ -23,6 +22,7 @@ struct MobedParameters {
     
     // CAD Mechanical Offsets (ROBOX V2: 55.5mm)
     double posture_z_offset = 0.0555; // Posture joint is 55.5mm lower than Steer joint
+    double wheel_scrub_offset_y = 0.05345; // Wheel center lateral offset from the steer axis, mirrored left/right
 
     // Chassis collision box dimensions (CAD half-dimensions)
     double chassis_box_x = 0.20; // m
@@ -37,19 +37,17 @@ class MobedKinematics {
 public:
     MobedKinematics(const MobedParameters& params = MobedParameters());
 
-    /**
-     * @brief Compute Driving Inverse Kinematics (Eq 7 in paper)
-     * 
-     * @param v_body [v_x, v_y, omega_z] target velocity of the body
-     * @param current_steer_angles [FL, FR, RL, RR] Current steering angles for shortest-path optimization
-     * @param current_ecc_angles [FL, FR, RL, RR] Current eccentric angles for exact contact point ^B r_i
-     * @return std::tuple<Eigen::Vector4d, Eigen::Vector4d> 
-     *         Tuple of (steer_angles [FL, FR, RL, RR], wheel_speeds [FL, FR, RL, RR])
-     */
-    std::tuple<Eigen::Vector4d, Eigen::Vector4d> computeDrivingIK(
-        const Eigen::Vector3d& v_body,
-        const Eigen::Vector4d& current_steer_angles,
-        const Eigen::Vector4d& current_ecc_angles) const;
+    struct SteeringTargets {
+        Eigen::Vector4d direct;
+        Eigen::Vector4d reversed;
+    };
+
+    // Eccentric modules can have two rolling headings less or more than
+    // 180 degrees apart. The controller selects within the safe sector.
+    SteeringTargets computeSteeringTargets(
+        const Eigen::Vector3d& body_twist,
+        const Eigen::Vector4d& previous_steer_targets,
+        const Eigen::Vector4d& eccentric_angles) const;
 
     /**
      * @brief Compute Posture Inverse Kinematics (Exact Non-linear Solution, Section III.E.3)
@@ -93,6 +91,16 @@ public:
      */
     Eigen::Vector3d computeFootPositionInBase(
         int leg_index, double q_str, double q_ecc) const;
+
+    struct WheelRollingSpeeds {
+        double chassis; // rad/s due to commanded body motion
+        double joints;  // rad/s needed to roll as the steer and eccentric joints move
+    };
+
+    // Planar rolling constraint at the measured joint configuration.
+    WheelRollingSpeeds computeWheelRollingSpeeds(
+        int leg_index, const Eigen::Vector3d& body_twist,
+        double q_str, double q_ecc, double steer_rate, double eccentric_rate) const;
 
     /**
      * @brief Get the Steer Joint positions in Base frame

@@ -266,7 +266,8 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     // ================================================================
     auto [target_steer, target_wheel] = driving_controller_->update(
         active_cmd_vel, curr_steer_angles, curr_ecc_angles, dt,
-        e_stop, is_homing_, curr_steer_velocities, curr_wheel_velocities);
+        e_stop, is_homing_, curr_steer_velocities, curr_wheel_velocities,
+        curr_ecc_velocities, contact_valid);
 
     prev_target_wheel_ = target_wheel;
 

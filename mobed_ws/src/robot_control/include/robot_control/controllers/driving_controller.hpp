@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <array>
 #include <tuple>
 #include <memory>
 #include "robot_control/kinematics/mobed_kinematics.hpp"
@@ -38,16 +39,8 @@ struct DrivingControllerParams {
     double max_steer_torque = 3.5; // Nm (DM-J4310P rated torque)
     double max_wheel_torque = 2.2;  // Nm (MS9010 v3 peak torque)
 
-    // ---- Active Steering Assist Kinematics (Offset Wheel Scrub Compensation) ----
-    // Lateral offset of wheel contact from steering axis in steering local frame (m)
-    // Left legs (FL, RL): +0.05345 m; Right legs (FR, RR): -0.05345 m
-    double wheel_scrub_offset_y = 0.05345;
-    // Steering assist proportional gain for wheel velocity feedforward (1/s)
-    double steer_assist_kp = 4.0;
-    // Maximum break-away rolling velocity for scrub assist (rad/s, ~0.12 m/s)
-    double steer_assist_max_vel = 1.2;
-    // Tracking error deadband (rad, ~2.0 deg) to prevent steady-state creep at rest
-    double steer_assist_deadband = 0.035;
+    // Maximum wheel speed contribution from joint motion (rad/s).
+    double max_rolling_compensation = 1.2;
 
     // ---- Velocity & Speed Saturation Limits ----
     double max_linear_vel  = 1.2;   // m/s (maximum chassis planar translation speed)
@@ -71,6 +64,8 @@ public:
      * @param is_homing Whether the robot is in homing mode
      * @param current_steer_vels Feedback steering joint velocities [FL, FR, RL, RR] (rad/s)
      * @param current_wheel_vels Feedback wheel rotational velocities [FL, FR, RL, RR] (rad/s)
+     * @param current_ecc_vels Feedback eccentric joint velocities [FL, FR, RL, RR] (rad/s)
+     * @param contact_valid Whether each wheel can use rolling compensation
      * @return std::tuple<Eigen::Vector4d, Eigen::Vector4d> (target_steer_angles, target_wheel_speeds)
      */
     std::tuple<Eigen::Vector4d, Eigen::Vector4d> update(
@@ -81,7 +76,9 @@ public:
         bool e_stop_active = false,
         bool is_homing = false,
         const Eigen::Vector4d& current_steer_vels = Eigen::Vector4d::Zero(),
-        const Eigen::Vector4d& current_wheel_vels = Eigen::Vector4d::Zero());
+        const Eigen::Vector4d& current_wheel_vels = Eigen::Vector4d::Zero(),
+        const Eigen::Vector4d& current_ecc_vels = Eigen::Vector4d::Zero(),
+        const std::array<bool, NUM_LEGS>& contact_valid = {true, true, true, true});
 
     /**
      * @brief Get synthesized low-level steering torques (Paper Fig. 8)
@@ -124,7 +121,6 @@ public:
     void reset() {
         initialized_ = false;
         filtered_bank_angle_ = 0.0;
-        zero_cmd_duration_ = 0.0;
         prev_swerve_inverted_.fill(false);
         steer_torques_.setZero();
         wheel_torques_.setZero();
@@ -145,25 +141,19 @@ private:
 
     bool initialized_ = false;
     double filtered_bank_angle_ = 0.0;  // smoothed bank angle output
-    double zero_cmd_duration_ = 0.0;    // duration in seconds for which cmd_vel has been ~0
     std::array<bool, 4> prev_swerve_inverted_ = {false, false, false, false};
 
     /**
-     * @brief Two-Stage Swerve Optimization with 180-deg Wheel Inversion Escape
-     * Evaluates candidate state A (theta, v) and inverted state B (theta +- pi, -v).
-     * Chooses shortest angular distance while actively evading forbidden inward sectors.
-     * (Section III.D in paper & RoboMaster Swerve Architecture)
-     * 
+     * @brief Choose a rolling heading within the safe steering sector.
+     *
      * @param leg_index Leg index (FL, FR, RL, RR)
-     * @param des_steer Desired steering angle from kinematics (rad)
-     * @param des_speed Desired wheel velocity from kinematics (rad/s)
-     * @param curr_steer Current actual steering angle (rad)
-     * @param curr_ecc Current eccentric posture angle (rad)
-     * @return std::pair<double, double> Optimized (steer_angle, wheel_speed)
+     * @param direct_angle Direct rolling heading (rad)
+     * @param reversed_angle Reversed rolling heading (rad)
+     * @param curr_steer Previous steering target (rad)
+     * @return Optimized steering angle (rad)
      */
-    std::pair<double, double> optimizeSwerveModule(
-        int leg_index, double des_steer, double des_speed, double curr_steer, double curr_ecc,
-        bool force_align = false);
+    double optimizeSwerveModule(
+        int leg_index, double direct_angle, double reversed_angle, double curr_steer);
 
     /**
      * @brief Dynamic collision-free transit interpolator.

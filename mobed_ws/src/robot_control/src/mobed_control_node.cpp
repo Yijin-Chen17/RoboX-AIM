@@ -562,7 +562,8 @@ private:
         // ============================================================
         auto [target_steer, target_wheel] = driving_controller_->update(
             active_cmd_vel, curr_steer_angles_, curr_ecc_angles_, dt,
-            e_stop_active_, is_homing_, curr_steer_velocities_, curr_wheel_velocities_);
+            e_stop_active_, is_homing_, curr_steer_velocities_, curr_wheel_velocities_,
+            curr_ecc_velocities_, contact_valid);
 
         prev_target_wheel_ = target_wheel;
 

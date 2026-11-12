@@ -1,4 +1,5 @@
 #include "robot_control/kinematics/mobed_kinematics.hpp"
+#include <algorithm>
 
 namespace robot_control {
 namespace kinematics {
@@ -20,50 +21,35 @@ Eigen::Matrix<double, 4, 3> MobedKinematics::getSteerPositions() const {
     return steer_pos;
 }
 
-std::tuple<Eigen::Vector4d, Eigen::Vector4d> MobedKinematics::computeDrivingIK(
-    const Eigen::Vector3d& v_body,
-    const Eigen::Vector4d& current_steer_angles,
-    const Eigen::Vector4d& current_ecc_angles) const {
-    
-    Eigen::Vector4d target_steer_angles;
-    Eigen::Vector4d target_wheel_speeds;
+MobedKinematics::SteeringTargets MobedKinematics::computeSteeringTargets(
+    const Eigen::Vector3d& body_twist,
+    const Eigen::Vector4d& previous_steer_targets,
+    const Eigen::Vector4d& eccentric_angles) const {
+    SteeringTargets targets{previous_steer_targets, previous_steer_targets};
+    const auto steer_positions = getSteerPositions();
+    const double yaw_rate = body_twist.z();
 
-    double vx = v_body.x();
-    double vy = v_body.y();
-    double wz = v_body.z();
-
-    for (int i = 0; i < 4; ++i) {
-        double q_str = current_steer_angles(i);
-        double q_ecc = current_ecc_angles(i);
-
-        // Fixed-Point Iteration (2 steps) to eliminate kinematic loop between q_str and contact point ^B r_i.
-        // Guarantees instantaneous ICR consistency during high-speed spinning (Section III.D & Eq 7)
-        // Step 1: Initial estimate using seed steering angle
-        Eigen::Vector3d B_r_i = computeFootPositionInBase(i, q_str, q_ecc);
-        double v_ix = vx - wz * B_r_i.y();
-        double v_iy = vy + wz * B_r_i.x();
-        double speed = std::sqrt(v_ix * v_ix + v_iy * v_iy) / params_.r_wheel;
-
-        if (speed < 1e-3) {
-            target_steer_angles(i) = current_steer_angles(i);
-            target_wheel_speeds(i) = 0.0;
+    for (int i = 0; i < NUM_LEGS; ++i) {
+        const Eigen::Vector2d axis_velocity(
+            body_twist.x() - yaw_rate * steer_positions(i, 1),
+            body_twist.y() + yaw_rate * steer_positions(i, 0));
+        const double axis_speed = axis_velocity.norm();
+        if (axis_speed < 1e-3 * params_.r_wheel) {
             continue;
         }
 
-        double steer_iter = std::atan2(v_iy, v_ix);
-
-        // Step 2: Refined estimate with steer_iter
-        B_r_i = computeFootPositionInBase(i, steer_iter, q_ecc);
-        v_ix = vx - wz * B_r_i.y();
-        v_iy = vy + wz * B_r_i.x();
-        speed = std::sqrt(v_ix * v_ix + v_iy * v_iy) / params_.r_wheel;
-        double final_steer = std::atan2(v_iy, v_ix);
-
-        target_steer_angles(i) = normalize_angle(final_steer);
-        target_wheel_speeds(i) = speed;
+        // Zero lateral velocity requires sin(steer - heading) = yaw_rate *
+        // eccentric_reach / axis_speed. If there is no exact rolling solution,
+        // the clamped value minimizes lateral velocity before sector limits.
+        const double heading = std::atan2(axis_velocity.y(), axis_velocity.x());
+        const double eccentric_reach = params_.l_ecc * std::sin(eccentric_angles(i));
+        const double angle_offset = std::asin(std::clamp(
+            yaw_rate * eccentric_reach / axis_speed, -1.0, 1.0));
+        targets.direct(i) = normalize_angle(heading + angle_offset);
+        targets.reversed(i) = normalize_angle(heading + M_PI - angle_offset);
     }
 
-    return {target_steer_angles, target_wheel_speeds};
+    return targets;
 }
 
 Eigen::Vector4d MobedKinematics::computePostureIK(
@@ -170,6 +156,28 @@ Eigen::Vector3d MobedKinematics::computeFootPositionInBase(
         py + params_.l_ecc * std::sin(q_str) * std::sin(q_ecc),
         -params_.posture_z_offset - params_.l_ecc * std::cos(q_ecc) - params_.r_wheel
     );
+}
+
+MobedKinematics::WheelRollingSpeeds MobedKinematics::computeWheelRollingSpeeds(
+    int leg_index, const Eigen::Vector3d& body_twist,
+    double q_str, double q_ecc, double steer_rate, double eccentric_rate) const {
+    const Eigen::Vector2d rolling_direction(std::cos(q_str), std::sin(q_str));
+    const Eigen::Vector2d lateral_direction(-rolling_direction.y(), rolling_direction.x());
+    const double lateral_offset = (leg_index == FL || leg_index == RL)
+        ? params_.wheel_scrub_offset_y : -params_.wheel_scrub_offset_y;
+    const Eigen::Vector2d wheel_position =
+        computeFootPositionInBase(leg_index, q_str, q_ecc).head<2>() +
+        lateral_offset * lateral_direction;
+    const Eigen::Vector2d chassis_velocity =
+        body_twist.head<2>() +
+        body_twist.z() * Eigen::Vector2d(-wheel_position.y(), wheel_position.x());
+
+    // The eccentric arm's longitudinal offset sweeps sideways during steering.
+    // Only the lateral offset contributes to rolling speed from steering motion.
+    const double joint_rolling_velocity =
+        -lateral_offset * steer_rate + params_.l_ecc * std::cos(q_ecc) * eccentric_rate;
+    return {rolling_direction.dot(chassis_velocity) / params_.r_wheel,
+            joint_rolling_velocity / params_.r_wheel};
 }
 
 MobedKinematics::SteerSectorConfig MobedKinematics::getLegSafeSectorConfig(int leg_index) const {

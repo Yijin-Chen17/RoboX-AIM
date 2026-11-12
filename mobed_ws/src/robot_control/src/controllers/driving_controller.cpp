@@ -36,30 +36,10 @@ double DrivingController::computeBankAngle(const Eigen::Vector3d& cmd_vel) const
     return bank;
 }
 
-std::pair<double, double> DrivingController::optimizeSwerveModule(
-    int leg_index, double des_steer, double des_speed, double curr_steer, double /*curr_ecc*/,
-    bool force_align) {
-    
-    if (std::abs(des_speed) < 1e-3) {
-        if (!force_align) {
-            return {curr_steer, 0.0};
-        }
-        // Force-alignment requested (homing or neutral centering):
-        // Steer directly towards des_steer, clamping outside forbidden sector
-        prev_swerve_inverted_[leg_index] = false;
-        double s_target = kinematics_->normalize_angle(des_steer);
-        s_target = kinematics_->clampToSafeSteerSector(leg_index, s_target);
-        return {s_target, 0.0};
-    }
-
-    // Candidate State A: (des_steer, des_speed)
-    double s_A = kinematics_->normalize_angle(des_steer);
-    double v_A = des_speed;
-
-    // Inverted State B: (des_steer +- pi, -des_speed)
-    // Produces identical ground traction vector while keeping wheel in outward safe sector
-    double s_B = kinematics_->normalize_angle(des_steer + M_PI);
-    double v_B = -des_speed;
+double DrivingController::optimizeSwerveModule(
+    int leg_index, double direct_angle, double reversed_angle, double curr_steer) {
+    const double s_A = direct_angle;
+    const double s_B = reversed_angle;
 
     // Safe Sector Check: evaluated against each leg's individual safe outward sector
     bool safe_A = !kinematics_->isSteerInForbiddenSector(leg_index, s_A);
@@ -72,62 +52,27 @@ std::pair<double, double> DrivingController::optimizeSwerveModule(
     double diff_A = std::abs(u_A - u_curr);
     double diff_B = std::abs(u_B - u_curr);
 
-    // Stance bias: slight preference for states closer to widest stance angle
-    double opt_stance = kinematics_->getOptimalOutwardStanceAngle(leg_index);
-    double stance_dist_A = std::abs(kinematics_->normalize_angle(s_A - opt_stance));
-    double stance_dist_B = std::abs(kinematics_->normalize_angle(s_B - opt_stance));
-
-    std::pair<double, double> result;
-
     if (safe_A && safe_B) {
-        // Both safe (typically around +-90 deg pure strafe boundary):
-        // Apply switching hysteresis to prevent chattering
-        bool was_inverted = prev_swerve_inverted_[leg_index];
-        double hyst = params_.swerve_invert_hysteresis; // ~0.175 rad (10 deg)
-        
-        bool choose_B;
-        if (was_inverted) {
-            // Favor staying in B unless A is noticeably shorter
-            choose_B = (diff_A > diff_B - hyst);
-        } else {
-            // Favor staying in A unless B is noticeably shorter
-            choose_B = (diff_B < diff_A - hyst);
-        }
-
-        // If diffs are very close, break tie towards wider track stance
-        if (std::abs(diff_A - diff_B) < hyst) {
-            choose_B = (stance_dist_B < stance_dist_A);
-        }
-
-        if (choose_B) {
-            prev_swerve_inverted_[leg_index] = true;
-            result = {s_B, v_B};
-        } else {
-            prev_swerve_inverted_[leg_index] = false;
-            result = {s_A, v_A};
-        }
-    } else if (safe_A) {
-        prev_swerve_inverted_[leg_index] = false;
-        result = {s_A, v_A};
-    } else if (safe_B) {
-        // Active evasion: 180 deg inversion keeps wheel safely outward!
-        // For spin, FL/RL/FR/RR will reliably select this when direct target points inward.
-        prev_swerve_inverted_[leg_index] = true;
-        result = {s_B, v_B};
-    } else {
-        // Fallback: when neither candidate is strictly within the safe sector (e.g. at transition boundaries),
-        // pick whichever candidate is closer to the safe sector center, clamp it to the safe boundary,
-        // and project the drive velocity onto the clamped heading rather than zeroing it out.
-        bool choose_B = (std::abs(u_B) < std::abs(u_A));
-        double target_s = choose_B ? s_B : s_A;
-        double base_v   = choose_B ? v_B : v_A;
-        double safe_s   = kinematics_->clampToSafeSteerSector(leg_index, target_s);
-        double v_proj   = base_v * std::cos(safe_s - target_s);
+        const double hysteresis = params_.swerve_invert_hysteresis;
+        const bool choose_B = prev_swerve_inverted_[leg_index]
+            ? diff_B <= diff_A + hysteresis
+            : diff_B + hysteresis < diff_A;
         prev_swerve_inverted_[leg_index] = choose_B;
-        result = {safe_s, v_proj};
+        return choose_B ? s_B : s_A;
+    }
+    if (safe_A) {
+        prev_swerve_inverted_[leg_index] = false;
+        return s_A;
+    }
+    if (safe_B) {
+        prev_swerve_inverted_[leg_index] = true;
+        return s_B;
     }
 
-    return result;
+    // Clamp the candidate closest to the safe sector when both are outside it.
+    bool choose_B = (std::abs(u_B) < std::abs(u_A));
+    prev_swerve_inverted_[leg_index] = choose_B;
+    return kinematics_->clampToSafeSteerSector(leg_index, choose_B ? s_B : s_A);
 }
 
 double DrivingController::enforceForbiddenSectorTransit(
@@ -160,7 +105,9 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     bool e_stop_active,
     bool is_homing,
     const Eigen::Vector4d& current_steer_vels,
-    const Eigen::Vector4d& current_wheel_vels) {
+    const Eigen::Vector4d& current_wheel_vels,
+    const Eigen::Vector4d& current_ecc_vels,
+    const std::array<bool, NUM_LEGS>& contact_valid) {
 
     // First time initialization to current hardware state
     if (!initialized_) {
@@ -199,61 +146,16 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     // Low-pass filter for smooth transitions
     filtered_bank_angle_ += params_.bank_angle_filter * (raw_bank - filtered_bank_angle_);
 
-    // ================================================================
-    // 2. Swerve Drive Inverse Kinematics (Eq 7 in paper)
-    // ================================================================
-    Eigen::Vector4d raw_steer_angles;
-    Eigen::Vector4d raw_wheel_speeds;
-    bool align_to_neutral = is_homing || (active_cmd.norm() < 1e-3);
-
+    const bool align_to_neutral = is_homing || active_cmd.norm() < 1e-3;
+    Eigen::Vector4d opt_steer = Eigen::Vector4d::Zero();
     if (align_to_neutral) {
-        raw_steer_angles.setZero();
-        raw_wheel_speeds.setZero();
-        zero_cmd_duration_ = 0.0;
+        prev_swerve_inverted_.fill(false);
     } else {
-        // Use prev_steer_angles_ (last commanded) instead of current_steer_angles (physical)
-        // Pass current_ecc_angles for exact contact point ^B r_i (Section III.D)
-        auto [s, w] = kinematics_->computeDrivingIK(active_cmd, prev_steer_angles_, current_ecc_angles);
-        raw_steer_angles = s;
-        raw_wheel_speeds = w;
-    }
-
-    // ============================================================
-    // 3. Two-Stage Swerve Optimization (Shortest-Path + 180-deg Inversion Escape)
-    // ============================================================
-    Eigen::Vector4d opt_steer = prev_steer_angles_;
-    Eigen::Vector4d opt_speed = prev_wheel_speeds_;
-
-    for (int i = 0; i < 4; ++i) {
-        auto [s, w] = optimizeSwerveModule(
-            i, raw_steer_angles(i), raw_wheel_speeds(i),
-            prev_steer_angles_(i), current_ecc_angles(i),
-            align_to_neutral);
-        opt_steer(i) = s;
-        opt_speed(i) = w;
-    }
-
-    // ============================================================
-    // 3.5 Ground Traction Vector Projection & Alignment
-    // Industry standard practice (NASA/Hyundai e-Corner/Swerve Drive):
-    // Computes drive speed via dot product projection: v_module = (v_contact · u_hat) / r_wheel
-    // Ensures that for any module heading, the contact point push vector strictly aligns
-    // with the commanded body velocity, completely eliminating opposing front/rear wheel forces.
-    // ============================================================
-    if (active_cmd.norm() >= 1e-3) {
-        double r_w = kinematics_->getParams().r_wheel;
-        if (r_w < 1e-4) r_w = 0.10;
-
-        for (int i = 0; i < 4; ++i) {
-            Eigen::Vector3d B_r_i = kinematics_->computeFootPositionInBase(i, opt_steer(i), current_ecc_angles(i));
-            double v_ix = active_cmd.x() - active_cmd.z() * B_r_i.y();
-            double v_iy = active_cmd.y() + active_cmd.z() * B_r_i.x();
-
-            double u_x = std::cos(opt_steer(i));
-            double u_y = std::sin(opt_steer(i));
-            double v_dot = (v_ix * u_x + v_iy * u_y) / r_w;
-
-            opt_speed(i) = v_dot;
+        const auto targets = kinematics_->computeSteeringTargets(
+            active_cmd, prev_steer_angles_, current_ecc_angles);
+        for (int i = 0; i < NUM_LEGS; ++i) {
+            opt_steer(i) = optimizeSwerveModule(
+                i, targets.direct(i), targets.reversed(i), prev_steer_angles_(i));
         }
     }
 
@@ -277,77 +179,42 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
         }
     }
 
-    // ============================================================
-    // 5. Active Steering Assist Kinematics & Slew Rate Limiting
-    // Offset wheel scrub compensation: when steering rotates at rate dot_theta,
-    // the wheel contact patch at lateral scrub offset y_offset swings along an arc.
-    // Adding v_roll_comp = - y_offset * dot_theta transforms sliding scrub friction
-    // into pure rolling.
-    // To prevent multi-wheel internal chassis tension and lockup:
-    // - Deadband on tracking error eliminates steady-state motor creep at rest.
-    // - Assist velocity is strictly capped to steer_assist_max_vel (1.2 rad/s).
-    // - Assist velocity is smoothly faded out during translation/rotation.
-    // ============================================================
-    Eigen::Vector4d final_steer = prev_steer_angles_;
-    Eigen::Vector4d final_speed = prev_wheel_speeds_;
-
-    const std::array<double, 4> y_offsets = {
-        params_.wheel_scrub_offset_y,   // FL: +0.05345 m (left of steering axis)
-       -params_.wheel_scrub_offset_y,   // FR: -0.05345 m (right of steering axis)
-        params_.wheel_scrub_offset_y,   // RL: +0.05345 m (left of steering axis)
-       -params_.wheel_scrub_offset_y    // RR: -0.05345 m (right of steering axis)
-    };
-
-    double r_w = kinematics_->getParams().r_wheel;
-    if (r_w < 1e-4) r_w = 0.10;
-
-    // Fading factor: when vehicle is actively translating or rotating, dynamic rolling friction
-    // already eliminates scrub resistance. Fade out scrub assist so wheel speeds remain symmetric!
-    double cmd_motion = active_cmd.head<2>().norm() + 0.2 * std::abs(active_cmd.z());
-    double assist_fade = std::clamp(1.0 - cmd_motion / 0.3, 0.0, 1.0);
-
-    for (int i = 0; i < 4; ++i) {
-        // Rate Limiting (Steering) with continuous forbidden sector avoidance
-        double max_steer_delta = params_.max_steer_vel * dt;
-        final_steer(i) = enforceForbiddenSectorTransit(
-            i, prev_steer_angles_(i), opt_steer(i), max_steer_delta);
-
-        // Steering rotation velocity and tracking error
-        double steer_cmd_rate = (final_steer(i) - prev_steer_angles_(i)) / std::max(dt, 1e-4);
-        double steer_track_err = kinematics_->normalize_angle(final_steer(i) - current_steer_angles(i));
-
-        // Deadband on tracking error: ignore small errors (< 2 deg) to prevent motor creep / tension at rest
-        double effective_track_err = 0.0;
-        if (std::abs(steer_track_err) > params_.steer_assist_deadband) {
-            effective_track_err = (steer_track_err > 0.0)
-                ? (steer_track_err - params_.steer_assist_deadband)
-                : (steer_track_err + params_.steer_assist_deadband);
-        }
-
-        double effective_steer_rate = steer_cmd_rate + params_.steer_assist_kp * effective_track_err;
-        effective_steer_rate = std::clamp(effective_steer_rate, -params_.max_steer_vel, params_.max_steer_vel);
-
-        // Wheel scrub compensation velocity (rad/s): omega = - (y_offset / r_wheel) * effective_steer_rate
-        double raw_omega_assist = - (y_offsets[i] / r_w) * effective_steer_rate;
-
-        // Strictly clamp assist velocity to prevent chassis-level tire clamping / tension lockup
-        double clamped_omega_assist = std::clamp(raw_omega_assist, -params_.steer_assist_max_vel, params_.steer_assist_max_vel);
-        double omega_steer_assist = clamped_omega_assist * assist_fade;
-
-        // When returning to neutral at standstill (align_to_neutral with zero command):
-        // Further attenuate assist by 50% so left/right opposing tire forces cannot bind the chassis
-        if (align_to_neutral && active_cmd.norm() < 1e-3) {
-            omega_steer_assist *= 0.5;
-        }
-
-        // Combine chassis-level translation with wheel steering assist
-        double target_speed = opt_speed(i) * coherent_drive_scale + omega_steer_assist;
-        double speed_delta = target_speed - prev_wheel_speeds_(i);
-        double max_speed_delta = params_.max_wheel_accel * dt;
-        speed_delta = std::clamp(speed_delta, -max_speed_delta, max_speed_delta);
-        double sat_speed = prev_wheel_speeds_(i) + speed_delta;
-        final_speed(i) = std::clamp(sat_speed, -params_.max_wheel_speed, params_.max_wheel_speed);
+    // Project traction onto the measured rolling axis and reserve wheel speed
+    // for joint motion before scaling all traction requests together.
+    Eigen::Vector3d traction_twist = active_cmd;
+    if (align_to_neutral) {
+        traction_twist.setZero();
     }
+    const double compensation_limit =
+        std::min(params_.max_rolling_compensation, params_.max_wheel_speed);
+    Eigen::Vector4d final_steer;
+    Eigen::Vector4d traction;
+    Eigen::Vector4d compensation;
+    double traction_scale = coherent_drive_scale;
+    for (int i = 0; i < NUM_LEGS; ++i) {
+        final_steer(i) = enforceForbiddenSectorTransit(
+            i, prev_steer_angles_(i), opt_steer(i), params_.max_steer_vel * dt);
+
+        const auto rolling = kinematics_->computeWheelRollingSpeeds(
+            i, traction_twist, current_steer_angles(i), current_ecc_angles(i),
+            current_steer_vels(i), current_ecc_vels(i));
+        traction(i) = rolling.chassis;
+        compensation(i) = contact_valid[i] && std::isfinite(rolling.joints)
+            ? std::clamp(rolling.joints, -compensation_limit, compensation_limit) : 0.0;
+
+        if (std::abs(traction(i)) > 1e-6) {
+            const double headroom = params_.max_wheel_speed -
+                std::copysign(1.0, traction(i)) * compensation(i);
+            traction_scale = std::min(traction_scale, headroom / std::abs(traction(i)));
+        }
+    }
+
+    const Eigen::Vector4d target_speed = traction_scale * traction + compensation;
+    const double max_speed_delta = params_.max_wheel_accel * dt;
+    const Eigen::Vector4d speed_delta = (target_speed - prev_wheel_speeds_)
+        .cwiseMax(-max_speed_delta).cwiseMin(max_speed_delta);
+    const Eigen::Vector4d final_speed = (prev_wheel_speeds_ + speed_delta)
+        .cwiseMax(-params_.max_wheel_speed).cwiseMin(params_.max_wheel_speed);
 
     // ============================================================
     // 5. Low-Level Actuator Torque Loops (Paper Fig. 8 & Dual-Layer Mode)
