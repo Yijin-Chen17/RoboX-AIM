@@ -55,6 +55,7 @@ void MobedControllerCore::setRobotModel(RobotModelType type) {
 }
 
 void MobedControllerCore::reset() {
+    spin_drive_.reset();
     joints_initialized_ = false;
     is_homing_ = true;
     homing_timer_ = 0.0;
@@ -70,7 +71,8 @@ void MobedControllerCore::reset() {
     if (task_controller_) task_controller_->reset();
 }
 
-void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out) {
+void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out,
+                                 int spin_request) {
     if (dt <= 0.0 || dt > 0.5) return;
 
     transition_smoother_.update(dt);
@@ -205,7 +207,21 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             imu.angular_velocity, task_controller_->getCurbHeight(), dt);
     }
 
-    Eigen::Vector3d active_cmd_vel = is_homing_ ? Eigen::Vector3d::Zero() : cmd_vel;
+    const bool e_stop = cmd.e_stop != 0;
+    const bool spin_available = robot_params_.model_type == RobotModelType::ROBOX_V2 &&
+        !is_homing_ && !transition_smoother_.in_transition && !task_controller_->isActive() &&
+        climb_mode_ != ClimbMode::STAIR_200MM && imu.angular_velocity.allFinite() &&
+        R_base(2, 2) > 0.97;
+    const auto spin = spin_drive_.update(
+        spin_request, spin_available, e_stop,
+        controllers::SpinDrive::measuredHeading(imu.orientation, imu.has_orientation),
+        (R_base * (imu.angular_velocity - state_estimator_->getGyroBias())).z(),
+        (R_base.transpose() * body_state.linear_velocity).head<2>(),
+        driving_controller_->getSteeringError(),
+        cmd_vel.head<2>(), curr_ecc_angles, *kinematics_, dt);
+    Eigen::Vector3d active_cmd_vel =
+        (is_homing_ || spin_request != 0) ? Eigen::Vector3d::Zero() : cmd_vel;
+    if (spin.ownsDrive()) active_cmd_vel = spin.twist;
     if (task_controller_->isActive()) {
         double fsm_vx = task_controller_->getForwardVelocityOverride();
         active_cmd_vel = Eigen::Vector3d(fsm_vx, 0.0, 0.0);
@@ -243,8 +259,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     // ================================================================
     // Phase 4: Obstacle Climbing State Machine (Climb FSM)
     // ================================================================
-    bool e_stop = (cmd.e_stop != 0);
-    if (!is_homing_ && !e_stop) {
+    if (!is_homing_ && !e_stop && !spin.ownsDrive() && spin_request == 0) {
         const auto& geom = climb_geometry_estimator_->getGeometry();
         if (!task_controller_->isActive() && cmd_vel(0) < -0.05) {
             contact_detector_->reset();
@@ -267,12 +282,16 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     auto [target_steer, target_wheel] = driving_controller_->update(
         active_cmd_vel, curr_steer_angles, curr_ecc_angles, dt,
         e_stop, is_homing_, curr_steer_velocities, curr_wheel_velocities,
-        curr_ecc_velocities, contact_valid);
+        curr_ecc_velocities, contact_valid, spin.alignment_yaw_rate, spin.ownsDrive());
 
     prev_target_wheel_ = target_wheel;
 
     // Auto-Strafe Outward Stance ("外八字") detection when pure strafing
-    if (user_posture_config_ == PostureConfiguration::OUTWARD &&
+    if (spin.ownsDrive()) {
+        strafe_outward_active_ = false;
+        strafe_exit_timer_ = 0.0;
+        balance_controller_->setPostureConfiguration(PostureConfiguration::SPIN);
+    } else if (user_posture_config_ == PostureConfiguration::OUTWARD &&
         !task_controller_->isActive() && !is_homing_ && !e_stop) {
 
         bool strafe_intent = (std::abs(active_cmd_vel.y()) > 0.05 &&
@@ -305,6 +324,8 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             ? PostureConfiguration::STRAFE_OUTWARD
             : user_posture_config_;
         balance_controller_->setPostureConfiguration(effective_config);
+    } else if (!task_controller_->isActive()) {
+        balance_controller_->setPostureConfiguration(user_posture_config_);
     }
 
     // ================================================================
@@ -318,7 +339,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     double active_roll   = is_homing_ ? 0.0 : target_roll;
     double active_pitch  = is_homing_ ? 0.0 : target_pitch;
 
-    if (!is_homing_) {
+    if (!is_homing_ && !spin.ownsDrive()) {
         active_roll += driving_controller_->getBankAngle();
     }
 
@@ -337,10 +358,12 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             active_terrain_state.roll_slope, Eigen::Vector3d::UnitX()).toRotationMatrix();
     }
 
+    const Eigen::Vector3d balance_twist = spin.ownsDrive()
+        ? Eigen::Vector3d::Zero() : active_cmd_vel;
     ControlOutput balance_out = balance_controller_->updateHybrid(
         active_height, active_roll, active_pitch,
         target_steer, curr_ecc_angles, curr_ecc_efforts, body_state,
-        contact_points_world, contact_valid, active_terrain_state, dt, e_stop, active_cmd_vel);
+        contact_points_world, contact_valid, active_terrain_state, dt, e_stop, balance_twist);
 
     Eigen::Vector4d target_ecc = balance_out.ecc_angles;
 
@@ -421,7 +444,8 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
                 target_wheel_vel = task_controller_->getWheelSpeedOverrides()(i);
             }
         }
-        if (transition_smoother_.in_transition && !task_controller_->isActive()) {
+        if (transition_smoother_.in_transition && !task_controller_->isActive() &&
+            !spin.ownsDrive() && !e_stop) {
             double alpha = transition_smoother_.getWeight();
             target_wheel_vel = (1.0 - alpha) * transition_smoother_.start_wheel_vels(i) + alpha * target_wheel_vel;
         }
@@ -497,6 +521,15 @@ void mobed_update(void* handle,
     if (handle && in && cmd && out) {
         static_cast<robot_control::MobedControllerCore*>(handle)->update(*in, *cmd, dt, *out);
     }
+}
+
+int mobed_update_spin(void* handle, const robot_control::SensorInputs* in,
+                      const robot_control::CommandInputs* cmd, double dt,
+                      robot_control::ActuatorOutputs* out, int spin_request) {
+    if (!handle || !in || !cmd || !out) return 0;
+    auto* core = static_cast<robot_control::MobedControllerCore*>(handle);
+    core->update(*in, *cmd, dt, *out, spin_request);
+    return static_cast<int>(core->spinPhase());
 }
 
 }

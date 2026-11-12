@@ -6,6 +6,7 @@
 #include "robot_control/core/robot_params.hpp"
 #include "robot_control/kinematics/mobed_kinematics.hpp"
 #include "robot_control/controllers/driving_controller.hpp"
+#include "robot_control/controllers/spin_drive.hpp"
 #include "robot_control/controllers/balance_controller.hpp"
 #include "robot_control/estimation/state_estimator.hpp"
 #include "robot_control/estimation/terrain_estimator.hpp"
@@ -65,10 +66,13 @@ public:
 
     void reset();
     void setRobotModel(RobotModelType type);
-    void update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out);
+    void update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out,
+                int spin_request = 0);
+    controllers::SpinDrive::Phase spinPhase() const { return spin_drive_.phase(); }
 
 private:
     RobotParams robot_params_;
+    controllers::SpinDrive spin_drive_;
     ClimbMode climb_mode_ = ClimbMode::ADAPTIVE;
     PostureConfiguration user_posture_config_ = PostureConfiguration::OUTWARD;
 
@@ -157,4 +161,7 @@ extern "C" {
                        const robot_control::CommandInputs* cmd,
                        double dt,
                        robot_control::ActuatorOutputs* out);
+    int mobed_update_spin(void* handle, const robot_control::SensorInputs* in,
+                          const robot_control::CommandInputs* cmd, double dt,
+                          robot_control::ActuatorOutputs* out, int spin_request);
 }

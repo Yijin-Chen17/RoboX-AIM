@@ -107,7 +107,8 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     const Eigen::Vector4d& current_steer_vels,
     const Eigen::Vector4d& current_wheel_vels,
     const Eigen::Vector4d& current_ecc_vels,
-    const std::array<bool, NUM_LEGS>& contact_valid) {
+    const std::array<bool, NUM_LEGS>& contact_valid,
+    double alignment_yaw_rate, bool spin_mode) {
 
     // First time initialization to current hardware state
     if (!initialized_) {
@@ -142,17 +143,21 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     // ================================================================
     // 1. Compute Bank Angle (centripetal force compensation)
     // ================================================================
-    double raw_bank = is_homing ? 0.0 : computeBankAngle(active_cmd);
+    double raw_bank = (is_homing || spin_mode) ? 0.0 : computeBankAngle(active_cmd);
     // Low-pass filter for smooth transitions
     filtered_bank_angle_ += params_.bank_angle_filter * (raw_bank - filtered_bank_angle_);
 
     const bool align_to_neutral = is_homing || active_cmd.norm() < 1e-3;
+    Eigen::Vector3d steering_twist = active_cmd;
+    if (!is_homing && alignment_yaw_rate != 0.0) {
+        steering_twist = Eigen::Vector3d(0.0, 0.0, alignment_yaw_rate);
+    }
     Eigen::Vector4d opt_steer = Eigen::Vector4d::Zero();
-    if (align_to_neutral) {
+    if (is_homing || steering_twist.norm() < 1e-3) {
         prev_swerve_inverted_.fill(false);
     } else {
         const auto targets = kinematics_->computeSteeringTargets(
-            active_cmd, prev_steer_angles_, current_ecc_angles);
+            steering_twist, prev_steer_angles_, current_ecc_angles);
         for (int i = 0; i < NUM_LEGS; ++i) {
             opt_steer(i) = optimizeSwerveModule(
                 i, targets.direct(i), targets.reversed(i), prev_steer_angles_(i));
@@ -171,6 +176,7 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
         }
     }
 
+    max_steer_error_ = max_steer_error;
     double coherent_drive_scale = 1.0;
     if (params_.enable_coherent_drive_scaling) {
         if (max_steer_error > params_.steer_alignment_deadband) {

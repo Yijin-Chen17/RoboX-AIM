@@ -78,7 +78,8 @@ public:
         const Eigen::Vector4d& current_steer_vels = Eigen::Vector4d::Zero(),
         const Eigen::Vector4d& current_wheel_vels = Eigen::Vector4d::Zero(),
         const Eigen::Vector4d& current_ecc_vels = Eigen::Vector4d::Zero(),
-        const std::array<bool, NUM_LEGS>& contact_valid = {true, true, true, true});
+        const std::array<bool, NUM_LEGS>& contact_valid = {true, true, true, true},
+        double alignment_yaw_rate = 0.0, bool spin_mode = false);
 
     /**
      * @brief Get synthesized low-level steering torques (Paper Fig. 8)
@@ -89,6 +90,8 @@ public:
      * @brief Get synthesized low-level driving wheel torques with traction limits (Paper Fig. 8)
      */
     Eigen::Vector4d getWheelTorques() const { return wheel_torques_; }
+
+    double getSteeringError() const { return max_steer_error_; }
 
     /**
      * @brief Get the bank angle (roll) induced by centripetal force during turning.
@@ -140,6 +143,7 @@ private:
     Eigen::Vector4d wheel_speed_integrals_ = Eigen::Vector4d::Zero();
 
     bool initialized_ = false;
+    double max_steer_error_ = 0.0;
     double filtered_bank_angle_ = 0.0;  // smoothed bank angle output
     std::array<bool, 4> prev_swerve_inverted_ = {false, false, false, false};
 

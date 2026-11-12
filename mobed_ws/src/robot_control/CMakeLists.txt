@@ -89,6 +89,10 @@ if(BUILD_TESTING)
   target_link_libraries(test_wheel_compensation PRIVATE mobed_controllers)
   add_test(NAME wheel_compensation COMMAND test_wheel_compensation)
 
+  add_executable(test_spin_drive test/test_spin_drive.cpp)
+  target_link_libraries(test_spin_drive PRIVATE mobed_kinematics)
+  add_test(NAME spin_drive COMMAND test_spin_drive)
+
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_copyright_FOUND TRUE)
   set(ament_cmake_cpplint_FOUND TRUE)

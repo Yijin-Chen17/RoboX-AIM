@@ -290,12 +290,14 @@ def main():
     lib.mobed_destroy.argtypes = [ctypes.c_void_p]
     lib.mobed_reset.argtypes = [ctypes.c_void_p]
     lib.mobed_set_robot_model.argtypes = [ctypes.c_void_p, ctypes.c_int]
-    lib.mobed_update.argtypes = [
+    lib.mobed_update_spin.restype = ctypes.c_int
+    lib.mobed_update_spin.argtypes = [
         ctypes.c_void_p,
         ctypes.POINTER(SensorInputs),
         ctypes.POINTER(CommandInputs),
         ctypes.c_double,
-        ctypes.POINTER(ActuatorOutputs)
+        ctypes.POINTER(ActuatorOutputs),
+        ctypes.c_int,
     ]
 
     controller = lib.mobed_create()
@@ -376,6 +378,7 @@ def main():
     print("    [W / S]       Drive Forward / Backward (1.0 m/s)")
     print("    [W + A / D]   Agile Driving Curve + Motorcycle Lean (SIMULTANEOUS!)")
     print("    [A / D]       Pure Lateral Strafe (when stopped, 391mm Wide Stance)")
+    print("    [V / B]       Toggle continuous spin CCW / CW with field-relative WASD")
     print("    [Q / E]       In-place Spin CCW / CW (1.8 rad/s)")
     print("    [Space / X]   Brake / Soft Stop (Release keys to coast to stop)")
     print("    [H]           Toggle Collision Overlay (Group 3: ON / OFF)")
@@ -397,6 +400,9 @@ def main():
     prev_key_l = False
     prev_key_t = False
     prev_key_g = False
+    prev_spin_keys = (False, False)
+    spin_request = 0
+    spin_phase = 0
 
     # ---------------------------------------------------------------
     # Eccentric-arm power measurement test
@@ -519,12 +525,6 @@ def main():
 
                     # 3. Poll multi-key hardware state (W + A simultaneous supported!)
                     key_state = get_hardware_keyboard_state(window)
-                    cmd_vel = teleop_commander.update(key_state, CONTROL_DT)
-
-                    c_in.vx = float(cmd_vel[0])
-                    c_in.vy = float(cmd_vel[1])
-                    c_in.wz = float(cmd_vel[2])
-
                     # Mode toggle keys (edge detection)
                     key_c = (glfw.get_key(window, glfw.KEY_C) == glfw.PRESS)
                     key_1 = (glfw.get_key(window, glfw.KEY_1) == glfw.PRESS)
@@ -561,10 +561,43 @@ def main():
                     prev_key_t = key_t
                     prev_key_g = key_g
 
+                    spin_keys = (
+                        glfw.get_key(window, glfw.KEY_V) == glfw.PRESS,
+                        glfw.get_key(window, glfw.KEY_B) == glfw.PRESS,
+                    )
+                    focused = bool(glfw.get_window_attrib(window, glfw.FOCUSED))
+                    diagnostic = (ecc_test_active or ecc_test_to_lowest or
+                                  start_lowest or start_away_test or start_toward_test)
+                    if key_state['brake'] or not focused or current_climb_mode == 2 or diagnostic:
+                        spin_request = 0
+                    elif spin_keys in ((True, False), (False, True)) and not any(prev_spin_keys):
+                        direction = 1 if spin_keys[0] else -1
+                        spin_request = 0 if spin_request == direction else direction
+                        if spin_request:
+                            ecc_pose_hold = False
+                    prev_spin_keys = spin_keys
+
+                    if spin_request or spin_phase:
+                        teleop_commander.reset()
+                        c_in.vx = 0.20 * (int(key_state['fwd']) - int(key_state['bwd']))
+                        c_in.vy = 0.20 * (int(key_state['left']) - int(key_state['rite']))
+                        c_in.wz = 0.0
+                    else:
+                        if not focused:
+                            key_state = {'brake': True}
+                        c_in.vx, c_in.vy, c_in.wz = teleop_commander.update(key_state, CONTROL_DT)
+
                     c_in.climb_mode = current_climb_mode
 
                     # 4. Invoke native C++ control core
-                    lib.mobed_update(controller, ctypes.byref(s_in), ctypes.byref(c_in), CONTROL_DT, ctypes.byref(out))
+                    previous_spin_phase = spin_phase
+                    spin_phase = lib.mobed_update_spin(
+                        controller, ctypes.byref(s_in), ctypes.byref(c_in), CONTROL_DT,
+                        ctypes.byref(out), spin_request)
+                    if previous_spin_phase and not spin_phase:
+                        spin_request = 0
+                    if spin_phase:
+                        start_lowest = start_away_test = start_toward_test = False
 
                     # Start a standalone 180-degree eccentric-arm power test.
                     # The test does not alter any controller/model parameter;
@@ -740,6 +773,10 @@ def main():
                 fsm_str = FSM_STATE_NAMES[fsm_idx] if 0 <= fsm_idx < len(FSM_STATE_NAMES) else f"STATE_{fsm_idx}"
                 is_strafing = (abs(c_in.vy) > 0.05 and abs(c_in.vx) < 0.1)
                 mode_tag = "STRAFE(391mm)" if is_strafing else "ROAD(Turn+Bank)"
+                if spin_phase:
+                    mode_tag = ('', 'SPIN ALIGNING', 'SPIN ACTIVE', 'SPIN STOPPING')[spin_phase]
+                elif spin_request:
+                    mode_tag = 'SPIN WAITING'
                 active_mode_label = "PAPER_NORMAL" if current_climb_mode == 1 else ("STAIR_200MM" if current_climb_mode == 2 else "DISABLED")
 
                 dashboard = (

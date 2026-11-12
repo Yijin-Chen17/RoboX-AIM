@@ -13,6 +13,8 @@
 
 // Kinematics & Controllers
 #include "robot_control/controllers/driving_controller.hpp"
+#include "robot_control/controllers/spin_drive.hpp"
+#include "std_msgs/msg/int8.hpp"
 #include "robot_control/controllers/balance_controller.hpp"
 
 // Estimation
@@ -91,6 +93,12 @@ public:
         sub_cmd_ = this->create_subscription<robot_interfaces::msg::MobEDCommand>(
             "/mobed/command", 10,
             std::bind(&MobedControlNode::commandCallback, this, std::placeholders::_1));
+
+        sub_spin_ = this->create_subscription<std_msgs::msg::Int8>(
+            "/mobed/spin", 1, [this](const std_msgs::msg::Int8::SharedPtr msg) {
+                spin_request_ = (msg->data == -1 || msg->data == 1) ? msg->data : 0;
+                last_spin_time_ = this->now();
+            });
 
         sub_joint_states_ = this->create_subscription<sensor_msgs::msg::JointState>(
             "/joint_states", 10,
@@ -262,13 +270,15 @@ private:
             msg->orientation.x,
             msg->orientation.y,
             msg->orientation.z);
-        imu.has_orientation = (msg->orientation.w != 0.0 ||
+        imu.has_orientation = msg->orientation_covariance[0] != -1.0 &&
+                              (msg->orientation.w != 0.0 ||
                                msg->orientation.x != 0.0 ||
                                msg->orientation.y != 0.0 ||
                                msg->orientation.z != 0.0);
 
         // Cache for the control loop
         latest_imu_ = imu;
+        last_imu_time_ = this->now();
         imu_received_ = true;
     }
 
@@ -358,6 +368,7 @@ private:
             }
         }
 
+        last_joint_state_time_ = this->now();
         if (!joints_initialized_) {
             for (int i = 0; i < 4; ++i) {
                 prev_cad_ecc_[i] = curr_ecc_angles_(i) * ecc_signs_[i] + ecc_offsets_[i];
@@ -398,6 +409,11 @@ private:
 
         // Teleop watchdog: decay cmd_vel_ to zero if no command received for > 0.5s
         if ((now - last_cmd_vel_time_).seconds() > 0.5) {
+            cmd_vel_.setZero();
+            spin_request_ = 0;
+        }
+        if (spin_request_ != 0 && (now - last_spin_time_).seconds() > 0.5) {
+            spin_request_ = 0;
             cmd_vel_.setZero();
         }
 
@@ -485,7 +501,23 @@ private:
                 task_controller_->getCurbHeight(), dt);
         }
 
-        Eigen::Vector3d active_cmd_vel = is_homing_ ? Eigen::Vector3d::Zero() : cmd_vel_;
+        const bool spin_available = robot_params_.model_type == RobotModelType::ROBOX_V2 &&
+            !is_homing_ && !transition_smoother_.in_transition && !task_controller_->isActive() &&
+            climb_mode_ != ClimbMode::STAIR_200MM && imu_received_ &&
+            (now - last_imu_time_).seconds() < 0.15 &&
+            (now - last_joint_state_time_).seconds() < 0.15 &&
+            latest_imu_.angular_velocity.allFinite() &&
+            R_base(2, 2) > 0.97;
+        const auto spin = spin_drive_.update(
+            spin_request_, spin_available, e_stop_active_,
+            controllers::SpinDrive::measuredHeading(latest_imu_.orientation, latest_imu_.has_orientation),
+            (R_base * (omega_body - state_estimator_->getGyroBias())).z(),
+            (R_base.transpose() * body_state.linear_velocity).head<2>(),
+            driving_controller_->getSteeringError(),
+            cmd_vel_.head<2>(), curr_ecc_angles_, *kinematics_, dt);
+        Eigen::Vector3d active_cmd_vel =
+            (is_homing_ || spin_request_ != 0) ? Eigen::Vector3d::Zero() : cmd_vel_;
+        if (spin.ownsDrive()) active_cmd_vel = spin.twist;
         if (task_controller_->isActive()) {
             double fsm_vx = task_controller_->getForwardVelocityOverride();
             active_cmd_vel = Eigen::Vector3d(fsm_vx, 0.0, 0.0);
@@ -517,7 +549,7 @@ private:
         // ============================================================
         // Phase 4: FSM Task Controller (climbing state machine)
         // ============================================================
-        if (!is_homing_ && !e_stop_active_) {
+        if (!is_homing_ && !e_stop_active_ && !spin.ownsDrive() && spin_request_ == 0) {
             const auto& geom = climb_geometry_estimator_->getGeometry();
 
             // Only reset contact detector when explicitly reversing or driving backwards
@@ -563,7 +595,7 @@ private:
         auto [target_steer, target_wheel] = driving_controller_->update(
             active_cmd_vel, curr_steer_angles_, curr_ecc_angles_, dt,
             e_stop_active_, is_homing_, curr_steer_velocities_, curr_wheel_velocities_,
-            curr_ecc_velocities_, contact_valid);
+            curr_ecc_velocities_, contact_valid, spin.alignment_yaw_rate, spin.ownsDrive());
 
         prev_target_wheel_ = target_wheel;
 
@@ -575,7 +607,11 @@ private:
         // The eccentric arms smoothly lift the chassis by ~15mm as they pass
         // through zero, flaring the wheels outward to a wide 391mm track width.
         // ============================================================
-        if (user_posture_config_ == PostureConfiguration::OUTWARD &&
+        if (spin.ownsDrive()) {
+            strafe_outward_active_ = false;
+            strafe_exit_timer_ = 0.0;
+            balance_controller_->setPostureConfiguration(PostureConfiguration::SPIN);
+        } else if (user_posture_config_ == PostureConfiguration::OUTWARD &&
             !task_controller_->isActive() && !is_homing_ && !e_stop_active_) {
 
             bool strafe_intent = (std::abs(active_cmd_vel.y()) > 0.05 &&
@@ -620,6 +656,8 @@ private:
                 ? PostureConfiguration::STRAFE_OUTWARD
                 : user_posture_config_;
             balance_controller_->setPostureConfiguration(effective_config);
+        } else if (!task_controller_->isActive()) {
+            balance_controller_->setPostureConfiguration(user_posture_config_);
         }
 
         // ============================================================
@@ -633,7 +671,7 @@ private:
         double active_pitch  = is_homing_ ? 0.0 : target_pitch_;
 
         // Overlay bank angle from driving controller onto target roll (only during active motion, not homing)
-        if (!is_homing_) {
+        if (!is_homing_ && !spin.ownsDrive()) {
             active_roll += driving_controller_->getBankAngle();
         }
 
@@ -656,10 +694,12 @@ private:
         }
 
         // Call updateHybrid using contact points from Phase 2.5 and body_state from Phase 2
+        const Eigen::Vector3d balance_twist = spin.ownsDrive()
+            ? Eigen::Vector3d::Zero() : active_cmd_vel;
         balance_out = balance_controller_->updateHybrid(
             active_height, active_roll, active_pitch,
             target_steer, curr_ecc_angles_, curr_ecc_efforts_, body_state,
-            contact_points_world, contact_valid, active_terrain_state, dt, e_stop_active_, active_cmd_vel);
+            contact_points_world, contact_valid, active_terrain_state, dt, e_stop_active_, balance_twist);
 
         target_ecc = balance_out.ecc_angles;
 
@@ -757,7 +797,7 @@ private:
                     target_wheel_vel = task_controller_->getWheelSpeedOverrides()(i);
                 }
             }
-            if (transition_smoother_.in_transition) {
+            if (transition_smoother_.in_transition && !spin.ownsDrive() && !e_stop_active_) {
                 double alpha = transition_smoother_.getWeight();
                 target_wheel_vel = (1.0 - alpha) * transition_smoother_.start_wheel_vels(i) + alpha * target_wheel_vel;
             }
@@ -879,6 +919,12 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Time last_time_;
     rclcpp::Time last_cmd_vel_time_;
+    rclcpp::Time last_spin_time_;
+    rclcpp::Time last_imu_time_;
+    rclcpp::Time last_joint_state_time_;
+    rclcpp::Subscription<std_msgs::msg::Int8>::SharedPtr sub_spin_;
+    controllers::SpinDrive spin_drive_;
+    int spin_request_ = 0;
 
     // ================================================================
     // State Variables
