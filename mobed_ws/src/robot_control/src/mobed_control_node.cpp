@@ -491,7 +491,7 @@ private:
         }
 
         // Update climb geometry estimator (step height, standardized pitch, support margins)
-        if (climb_mode_ == ClimbMode::STAIR_200MM || task_controller_->isActive()) {
+        if (climb_mode_ != ClimbMode::DISABLED || task_controller_->isActive()) {
             climb_geometry_estimator_->update(
                 body_state, contact_points_world,
                 curr_ecc_angles_,
@@ -499,6 +499,10 @@ private:
                 curr_wheel_velocities_, curr_wheel_efforts_,
                 prev_target_wheel_, omega_body,
                 task_controller_->getCurbHeight(), dt, curr_ecc_velocities_);
+        }
+
+        if (climb_mode_ == ClimbMode::PAPER_NORMAL && spin_request_ != 0 && task_controller_->isActive()) {
+            task_controller_->abort();
         }
 
         const bool spin_available = robot_params_.model_type == RobotModelType::ROBOX_V2 &&
@@ -557,6 +561,10 @@ private:
                 contact_detector_->reset();
             }
 
+            task_controller_->setNormalApproachAllowed(
+                user_posture_config_ == PostureConfiguration::OUTWARD &&
+                std::abs(cmd_vel_.y()) < 0.08 && std::abs(cmd_vel_.z()) < 0.25 &&
+                curr_steer_angles_.cwiseAbs().maxCoeff() < 0.25);
             bool was_active = task_controller_->isActive();
             task_controller_->update(
                 *contact_detector_, geom, curr_ecc_angles_, curr_ecc_efforts_, dt, chassis_forward_vel, cmd_vel_(0));
@@ -565,6 +573,10 @@ private:
                 climb_geometry_estimator_->reset();
                 contact_detector_->reset();
             }
+        }
+
+        if (climb_mode_ == ClimbMode::PAPER_NORMAL && task_controller_->isActive()) {
+            active_cmd_vel = Eigen::Vector3d(task_controller_->getForwardVelocityOverride(), 0.0, 0.0);
         }
 
         // Log FSM state transitions with override mask info
@@ -699,7 +711,8 @@ private:
         balance_out = balance_controller_->updateHybrid(
             active_height, active_roll, active_pitch,
             target_steer, curr_ecc_angles_, curr_ecc_efforts_, body_state,
-            contact_points_world, contact_valid, active_terrain_state, dt, e_stop_active_, balance_twist);
+            contact_points_world, contact_valid, active_terrain_state, dt, e_stop_active_, balance_twist,
+            climb_mode_ != ClimbMode::STAIR_200MM);
 
         target_ecc = balance_out.ecc_angles;
 
@@ -720,7 +733,9 @@ private:
         } else if (blend_w > 0.0) {
             for (int i = 0; i < NUM_LEGS; ++i) {
                 if (ecc_override_mask[i]) {
-                    const double delta = kinematics_->normalize_angle(target_ecc(i) - ecc_overrides_vec(i));
+                    const double delta = climb_mode_ == ClimbMode::PAPER_NORMAL
+                    ? target_ecc(i) - ecc_overrides_vec(i)
+                    : kinematics_->normalize_angle(target_ecc(i) - ecc_overrides_vec(i));
                     target_ecc(i) = ecc_overrides_vec(i) + (1.0 - blend_w) * delta;
                 }
             }

@@ -62,10 +62,12 @@ python3 mobed_sim_native.py
   ```
 - **模式选项**（`--climb`）：
   ```bash
-  python3 mobed_sim_native.py --climb normal   # 默认
-  python3 mobed_sim_native.py --climb stair
-  python3 mobed_sim_native.py --climb off
+  python3 mobed_sim_native.py --climb normal   # 默认：0–80 mm 小台阶
+  python3 mobed_sim_native.py --climb stair    # 独立的 200 mm 攀爬
+  python3 mobed_sim_native.py --climb off      # 关闭攀爬
   ```
+  仿真中按 `1` 进入 normal，按 `2` 进入 200 mm，按 `0` 关闭攀爬。切换会清除上一模式的攀爬进度。测试小台阶时，在 normal 下用外展姿态直行接近台阶。
+  原生仿真在启动 normal 攀爬前会测量前方碰撞地形的高度，高于 80 mm 时保持待机。
 - **初始位置/状态**（`--keyframe`）：
   ```bash
   python3 mobed_sim_native.py --keyframe home_red           # 红方基地出生点（朝向场地中心）

@@ -67,7 +67,7 @@ public:
     void reset();
     void setRobotModel(RobotModelType type);
     void update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out,
-                int spin_request = 0);
+                int spin_request = 0, bool normal_entry_allowed = true);
     controllers::SpinDrive::Phase spinPhase() const { return spin_drive_.phase(); }
 
 private:
@@ -164,4 +164,8 @@ extern "C" {
     int mobed_update_spin(void* handle, const robot_control::SensorInputs* in,
                           const robot_control::CommandInputs* cmd, double dt,
                           robot_control::ActuatorOutputs* out, int spin_request);
+    int mobed_update_spin_with_terrain(void* handle, const robot_control::SensorInputs* in,
+                                      const robot_control::CommandInputs* cmd, double dt,
+                                      robot_control::ActuatorOutputs* out, int spin_request,
+                                      int normal_entry_allowed);
 }

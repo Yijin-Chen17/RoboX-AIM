@@ -109,7 +109,8 @@ public:
         const TerrainState& terrain_state,
         double dt,
         bool e_stop_active = false,
-        const Eigen::Vector3d& cmd_vel = Eigen::Vector3d::Zero());
+        const Eigen::Vector3d& cmd_vel = Eigen::Vector3d::Zero(),
+        bool outward_half_circle = true);
 
     void reset() {
         initialized_ = false;

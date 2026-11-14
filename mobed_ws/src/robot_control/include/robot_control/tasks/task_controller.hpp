@@ -8,6 +8,7 @@
 #include "robot_control/estimation/contact_detector.hpp"
 #include "robot_control/estimation/climb_geometry_estimator.hpp"
 #include "robot_control/tasks/trajectory_generator.hpp"
+#include "robot_control/tasks/normal_climb_controller.hpp"
 
 namespace robot_control {
 namespace tasks {
@@ -187,7 +188,7 @@ public:
 
     void setClimbMode(ClimbMode mode) {
         if (params_.climb_mode != mode) {
-            has_climbed_ = false;
+            reset(); // modes never inherit each other's commands, timers, or blend-out
         }
         params_.climb_mode = mode;
     }
@@ -200,18 +201,20 @@ public:
     double computeRearLevelingAngle(double q_front_avg, double h_curb) const;
     double computeRearClimbTargetAngle(double h_curb) const;
 
+    void setNormalApproachAllowed(bool allowed) { normal_climb_.setApproachAllowed(allowed); }
+
     void clearClimbedLock() { has_climbed_ = false; }
-    bool isActive() const { return state_ != ClimbState::IDLE; }
-    bool hasClimbed() const { return has_climbed_; }
-    ClimbState getState() const { return state_; }
+    bool isActive() const { return normalMode() ? normal_climb_.active() : state_ != ClimbState::IDLE; }
+    bool hasClimbed() const { return normalMode() ? normal_climb_.hasClimbed() : has_climbed_; }
+    ClimbState getState() const { return normalMode() ? static_cast<ClimbState>(normal_climb_.state()) : state_; }
     std::string getStateName() const;
 
-    Eigen::Vector4d getEccOverrides() const { return ecc_overrides_; }
-    std::array<bool, NUM_LEGS> getOverrideMask() const { return override_mask_; }
-    Eigen::Vector4d getWheelSpeedOverrides() const { return wheel_speed_overrides_; }
-    std::array<bool, NUM_LEGS> getWheelOverrideMask() const { return wheel_override_mask_; }
-    double getForwardVelocityOverride() const { return forward_vel_override_; }
-    double getBlendWeight() const { return blend_out_weight_; }
+    Eigen::Vector4d getEccOverrides() const { return normalMode() ? normal_climb_.angles() : ecc_overrides_; }
+    std::array<bool, NUM_LEGS> getOverrideMask() const { return normalMode() ? normal_climb_.overrideMask() : override_mask_; }
+    Eigen::Vector4d getWheelSpeedOverrides() const { return normalMode() ? Eigen::Vector4d::Constant(normal_climb_.speed() / params_.wheel_radius) : wheel_speed_overrides_; }
+    std::array<bool, NUM_LEGS> getWheelOverrideMask() const { return normalMode() ? std::array<bool, NUM_LEGS>{false, false, false, false} : wheel_override_mask_; }
+    double getForwardVelocityOverride() const { return normalMode() ? normal_climb_.speed() : forward_vel_override_; }
+    double getBlendWeight() const { return normalMode() ? normal_climb_.blendWeight() : blend_out_weight_; }
     std::array<bool, NUM_LEGS> getContactValid() const;
 
     void abort();
@@ -221,6 +224,8 @@ public:
     const std::array<SingleLegFSM, NUM_LEGS>& getLegFSMs() const { return leg_fsms_; }
 
 private:
+    bool normalMode() const { return params_.climb_mode == ClimbMode::PAPER_NORMAL; }
+    NormalClimbController normal_climb_;
     static constexpr double kStairHeight = 0.20;
     bool rearAxleOnPlatform(const estimation::ClimbGeometry& geometry,
                            const Eigen::Vector4d& eccentric) const;

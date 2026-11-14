@@ -51,6 +51,7 @@ target_include_directories(mobed_dynamics SYSTEM PUBLIC ${EIGEN3_INCLUDE_DIRS})
 # Tasks Library (Unified Adaptive FSM Climbing + Trajectory Generator)
 add_library(mobed_tasks SHARED
   src/tasks/trajectory_generator.cpp
+  src/tasks/normal_climb_controller.cpp
   src/tasks/task_controller.cpp
 )
 target_include_directories(mobed_tasks PUBLIC
@@ -85,6 +86,10 @@ target_link_libraries(mobed_control_node
 ament_target_dependencies(mobed_control_node rclcpp sensor_msgs std_msgs robot_interfaces)
 
 if(BUILD_TESTING)
+  add_executable(test_normal_climb test/test_normal_climb.cpp)
+  target_link_libraries(test_normal_climb PRIVATE mobed_tasks)
+  add_test(NAME normal_climb COMMAND test_normal_climb)
+
   add_executable(test_wheel_compensation test/test_wheel_compensation.cpp)
   target_link_libraries(test_wheel_compensation PRIVATE mobed_controllers)
   add_test(NAME wheel_compensation COMMAND test_wheel_compensation)

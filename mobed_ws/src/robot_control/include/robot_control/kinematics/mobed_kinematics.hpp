@@ -58,6 +58,7 @@ public:
      * @param current_steer_angles [FL, FR, RL, RR] Steering angles needed for exact geometric projection
      * @param R_T Terrain plane rotation matrix
      * @param config Posture configuration (OUTWARD, INWARD, SPIN per Section II.B & Fig 5)
+     * @param outward_half_circle Allow the full signed 180-degree branch for OUTWARD
      * @return Eigen::Vector4d Target eccentric angles [FL, FR, RL, RR]
      */
     Eigen::Vector4d computePostureIK(
@@ -66,7 +67,8 @@ public:
         double target_pitch,
         const Eigen::Vector4d& current_steer_angles,
         const Eigen::Matrix3d& R_T,
-        PostureConfiguration config = PostureConfiguration::OUTWARD) const;
+        PostureConfiguration config = PostureConfiguration::OUTWARD,
+        bool outward_half_circle = true) const;
 
     // Backward-compatible overload for boolean outward_config
     Eigen::Vector4d computePostureIK(

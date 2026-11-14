@@ -58,7 +58,8 @@ Eigen::Vector4d MobedKinematics::computePostureIK(
     double target_pitch,
     const Eigen::Vector4d& current_steer_angles,
     const Eigen::Matrix3d& R_T,
-    PostureConfiguration config) const {
+    PostureConfiguration config,
+    bool outward_half_circle) const {
     
     Eigen::Vector4d target_ecc_angles;
     
@@ -98,6 +99,28 @@ Eigen::Vector4d MobedKinematics::computePostureIK(
         
         double sol1 = normalize_angle(std::asin(sin_val) - alpha);
         double sol2 = normalize_angle(M_PI - std::asin(sin_val) - alpha);
+
+        const bool is_front = i == FL || i == FR;
+        if (outward_half_circle && config == PostureConfiguration::OUTWARD) {
+            // q = 0 points down. In the forward steering reference, positive
+            // angles sweep forward and negative angles sweep rearward.
+            const double sign = is_front ? 1.0 : -1.0;
+            const auto on_branch = [sign](double angle) {
+                return std::abs(angle) == M_PI ? sign * M_PI : angle;
+            };
+            sol1 = on_branch(sol1);
+            sol2 = on_branch(sol2);
+            if (sign * sol1 >= 0.0) {
+                target_ecc_angles(i) = sol1;
+            } else if (sign * sol2 >= 0.0) {
+                target_ecc_angles(i) = sol2;
+            } else {
+                // With no solution on this half circle, use the endpoint
+                // whose projected height is closest to the requested one.
+                target_ecc_angles(i) = std::abs(C + B) <= std::abs(C - B) ? 0.0 : sign * M_PI;
+            }
+            continue;
+        }
         
         // Strict sign selection & feasible workspace filtering (Section II.B & III.E.3, Eq 15)
         // Normal operating range: eccentric arm points downwards/backwards to support the chassis.
@@ -106,7 +129,6 @@ Eigen::Vector4d MobedKinematics::computePostureIK(
         bool sol1_feasible = std::abs(sol1) <= max_angle;
         bool sol2_feasible = std::abs(sol2) <= max_angle;
 
-        bool is_front = (i == FL || i == FR);
         bool target_positive = true;
         if (config == PostureConfiguration::OUTWARD) {
             target_positive = is_front;

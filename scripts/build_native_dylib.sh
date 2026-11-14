@@ -20,6 +20,7 @@ clang++ -O3 -std=c++17 -shared -fPIC \
   mobed_ws/src/robot_control/src/estimation/terrain_estimator.cpp \
   mobed_ws/src/robot_control/src/estimation/contact_detector.cpp \
   mobed_ws/src/robot_control/src/estimation/climb_geometry_estimator.cpp \
+  mobed_ws/src/robot_control/src/tasks/normal_climb_controller.cpp \
   mobed_ws/src/robot_control/src/tasks/task_controller.cpp \
   mobed_ws/src/robot_control/src/tasks/trajectory_generator.cpp \
   -o build_native/libmobed_control.dylib

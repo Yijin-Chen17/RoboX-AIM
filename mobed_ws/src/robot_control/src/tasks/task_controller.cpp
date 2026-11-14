@@ -13,6 +13,7 @@ TaskController::TaskController(const TaskControllerParams& params)
 }
 
 void TaskController::reset() {
+    normal_climb_.reset();
     state_ = ClimbState::IDLE;
     ecc_overrides_ = Eigen::Vector4d::Zero();
     override_mask_.fill(false);
@@ -49,6 +50,7 @@ void TaskController::reset() {
 }
 
 void TaskController::abort() {
+    if (normalMode()) { normal_climb_.abort(); return; }
     blend_out_timer_ = 0.0;
     blend_out_weight_ = 1.0;
     cooldown_timer_ = params_.cooldown_duration;
@@ -162,6 +164,7 @@ double TaskController::computeRearClimbTargetAngle(double h_curb) const {
 }
 
 std::string TaskController::getStateName() const {
+    if (normalMode()) return normal_climb_.stateName();
     switch (state_) {
         case ClimbState::IDLE:               return "IDLE";
         case ClimbState::FRONT_WALL_CLIMB:   return "FRONT_WALL_CLIMB";
@@ -204,30 +207,13 @@ void TaskController::update(
 }
 
 void TaskController::updatePaperNormal(
-    [[maybe_unused]] const estimation::ContactDetector& contact_detector,
-    [[maybe_unused]] const estimation::ClimbGeometry& geometry,
-    [[maybe_unused]] const Eigen::Vector4d& current_ecc_angles,
+    const estimation::ContactDetector& contact_detector,
+    const estimation::ClimbGeometry& geometry,
+    const Eigen::Vector4d& current_ecc_angles,
     [[maybe_unused]] const Eigen::Vector4d& current_ecc_efforts,
-    [[maybe_unused]] double dt,
-    [[maybe_unused]] double body_vx,
-    [[maybe_unused]] double cmd_vx)
+    double dt, double body_vx, double cmd_vx)
 {
-    // Mode 1: IEEE RA-L 2026 paper standard normal mode.
-    // Pure paper behavior: BalanceController + DrivingController fully govern posture,
-    // terrain auto-leveling, and swerve drive.
-    // TaskController maintains IDLE state with no overrides.
-    if (state_ != ClimbState::IDLE) {
-        abort();
-        return;
-    }
-
-    state_ = ClimbState::IDLE;
-    override_mask_.fill(false);
-    forward_vel_override_ = 0.0;
-    wheel_speed_overrides_.setZero();
-    wheel_override_mask_.fill(false);
-    active_lift_mask_.fill(false);
-    coordinated_lift_active_ = false;
+    normal_climb_.update(contact_detector, geometry, current_ecc_angles, dt, body_vx, cmd_vx);
 }
 
 bool TaskController::rearAxleOnPlatform(const estimation::ClimbGeometry& geometry,
@@ -586,6 +572,7 @@ void TaskController::updateStair200mm(
 }
 
 void TaskController::handleBlendOut(double dt) {
+    if (normalMode()) return;
     if (state_ == ClimbState::IDLE && blend_out_weight_ > 0.0) {
         blend_out_timer_ += dt;
         double progress = blend_out_timer_ / params_.blend_out_duration;
@@ -601,6 +588,7 @@ void TaskController::handleBlendOut(double dt) {
 }
 
 std::array<bool, NUM_LEGS> TaskController::getContactValid() const {
+    if (normalMode()) return normal_climb_.contactValid();
     std::array<bool, NUM_LEGS> valid = {true, true, true, true};
     if (state_ == ClimbState::FRONT_WALL_CLIMB) {
         valid[FL] = false;

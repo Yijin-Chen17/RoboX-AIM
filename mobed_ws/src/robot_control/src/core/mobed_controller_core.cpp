@@ -72,7 +72,7 @@ void MobedControllerCore::reset() {
 }
 
 void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out,
-                                 int spin_request) {
+                                 int spin_request, bool normal_entry_allowed) {
     if (dt <= 0.0 || dt > 0.5) return;
 
     transition_smoother_.update(dt);
@@ -201,7 +201,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
         contact_points_world[i] = base_pos + R_base * foot_pos_in_base[i];
     }
 
-    if (climb_mode_ == ClimbMode::STAIR_200MM || task_controller_->isActive()) {
+    if (climb_mode_ != ClimbMode::DISABLED || task_controller_->isActive()) {
         climb_geometry_estimator_->update(
             body_state, contact_points_world, curr_ecc_angles,
             curr_ecc_efforts,
@@ -213,6 +213,10 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     if (e_stop && task_controller_->isActive()) {
         task_controller_->abort();
     }
+    if (climb_mode_ == ClimbMode::PAPER_NORMAL && spin_request != 0 && task_controller_->isActive()) {
+        task_controller_->abort();
+    }
+
     const bool spin_available = robot_params_.model_type == RobotModelType::ROBOX_V2 &&
         !is_homing_ && !transition_smoother_.in_transition && !task_controller_->isActive() &&
         climb_mode_ != ClimbMode::STAIR_200MM && imu.angular_velocity.allFinite() &&
@@ -270,6 +274,11 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             contact_detector_->reset();
         }
 
+        task_controller_->setNormalApproachAllowed(
+            (normal_entry_allowed || task_controller_->isActive()) &&
+            user_posture_config_ == PostureConfiguration::OUTWARD &&
+            std::abs(cmd_vel.y()) < 0.08 && std::abs(cmd_vel.z()) < 0.25 &&
+            curr_steer_angles.cwiseAbs().maxCoeff() < 0.25);
         bool was_active = task_controller_->isActive();
         task_controller_->update(
             *contact_detector_, geom, curr_ecc_angles, curr_ecc_efforts, dt, chassis_forward_vel, cmd_vel(0));
@@ -283,6 +292,10 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
                 contact_detector_->reset();
             }
         }
+    }
+
+    if (climb_mode_ == ClimbMode::PAPER_NORMAL && task_controller_->isActive()) {
+        active_cmd_vel = Eigen::Vector3d(task_controller_->getForwardVelocityOverride(), 0.0, 0.0);
     }
 
     // ================================================================
@@ -372,7 +385,8 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     ControlOutput balance_out = balance_controller_->updateHybrid(
         active_height, active_roll, active_pitch,
         target_steer, curr_ecc_angles, curr_ecc_efforts, body_state,
-        contact_points_world, contact_valid, active_terrain_state, dt, e_stop, balance_twist);
+        contact_points_world, contact_valid, active_terrain_state, dt, e_stop, balance_twist,
+        climb_mode_ != ClimbMode::STAIR_200MM);
 
     Eigen::Vector4d target_ecc = balance_out.ecc_angles;
 
@@ -399,7 +413,9 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     } else if (blend_w > 0.0) {
         for (int i = 0; i < NUM_LEGS; ++i) {
             if (ecc_override_mask[i]) {
-                const double delta = kinematics_->normalize_angle(target_ecc(i) - ecc_overrides_vec(i));
+                const double delta = climb_mode_ == ClimbMode::PAPER_NORMAL
+                ? target_ecc(i) - ecc_overrides_vec(i)
+                : kinematics_->normalize_angle(target_ecc(i) - ecc_overrides_vec(i));
                 target_ecc(i) = ecc_overrides_vec(i) + (1.0 - blend_w) * delta;
             }
         }
@@ -533,9 +549,16 @@ void mobed_update(void* handle,
 int mobed_update_spin(void* handle, const robot_control::SensorInputs* in,
                       const robot_control::CommandInputs* cmd, double dt,
                       robot_control::ActuatorOutputs* out, int spin_request) {
+    return mobed_update_spin_with_terrain(handle, in, cmd, dt, out, spin_request, 1);
+}
+
+int mobed_update_spin_with_terrain(void* handle, const robot_control::SensorInputs* in,
+                                  const robot_control::CommandInputs* cmd, double dt,
+                                  robot_control::ActuatorOutputs* out, int spin_request,
+                                  int normal_entry_allowed) {
     if (!handle || !in || !cmd || !out) return 0;
     auto* core = static_cast<robot_control::MobedControllerCore*>(handle);
-    core->update(*in, *cmd, dt, *out, spin_request);
+    core->update(*in, *cmd, dt, *out, spin_request, normal_entry_allowed != 0);
     return static_cast<int>(core->spinPhase());
 }
 

@@ -5,6 +5,19 @@
 namespace robot_control {
 namespace controllers {
 
+namespace {
+// Keep the upper vertical boundary on its leg's branch when the measured
+// angle has been wrapped to the equivalent angle with the opposite sign.
+Eigen::Vector4d alignOutwardEndpoints(Eigen::Vector4d angles) {
+    for (int i = 0; i < NUM_LEGS; ++i) {
+        if (std::abs(std::abs(angles(i)) - M_PI) < 1e-12) {
+            angles(i) = (i == FL || i == FR) ? M_PI : -M_PI;
+        }
+    }
+    return angles;
+}
+}  // namespace
+
 BalanceController::BalanceController(const BalanceControllerParams& params,
                                      std::shared_ptr<kinematics::MobedKinematics> kinematics)
     : params_(params),
@@ -47,8 +60,9 @@ Eigen::Vector4d BalanceController::update(
 
     // First time initialization to current hardware state
     if (!initialized_) {
-        start_ecc_angles_ = current_ecc_angles;
-        prev_ecc_angles_ = current_ecc_angles;
+        start_ecc_angles_ = current_config_ == PostureConfiguration::OUTWARD
+            ? alignOutwardEndpoints(current_ecc_angles) : current_ecc_angles;
+        prev_ecc_angles_ = start_ecc_angles_;
         time_since_init_ = 0.0;
         initialized_ = true;
     }
@@ -64,8 +78,9 @@ Eigen::Vector4d BalanceController::update(
     Eigen::Vector4d final_ecc = prev_ecc_angles_;
 
     for (int i = 0; i < 4; ++i) {
-        // 3. Mechanical Limit Clamp
-        raw_ecc_angles(i) = std::clamp(raw_ecc_angles(i), params_.min_ecc_angle, params_.max_ecc_angle);
+        if (current_config_ != PostureConfiguration::OUTWARD) {
+            raw_ecc_angles(i) = std::clamp(raw_ecc_angles(i), params_.min_ecc_angle, params_.max_ecc_angle);
+        }
     }
 
     // 4. Synchronized Smooth Startup Trajectory
@@ -274,7 +289,8 @@ ControlOutput BalanceController::updateHybrid(
     const TerrainState& terrain_state,
     double dt,
     bool e_stop_active,
-    const Eigen::Vector3d& cmd_vel)
+    const Eigen::Vector3d& cmd_vel,
+    bool outward_half_circle)
 {
     ControlOutput output;
 
@@ -338,11 +354,14 @@ ControlOutput BalanceController::updateHybrid(
 
     double active_ik_roll  = std::clamp(safe_roll  + roll_corr,  -params_.max_roll,  params_.max_roll);
     double active_ik_pitch = std::clamp(safe_pitch + pitch_corr, -params_.max_pitch, params_.max_pitch);
+    const bool use_outward_sector = outward_half_circle && current_config_ == PostureConfiguration::OUTWARD;
 
     Eigen::Vector4d ik_target = kinematics_->computePostureIK(
-        h_adapt, active_ik_roll, active_ik_pitch, current_steer_angles, terrain_state.rotation, current_config_);
+        h_adapt, active_ik_roll, active_ik_pitch, current_steer_angles,
+        terrain_state.rotation, current_config_, use_outward_sector);
 
     for (int i = 0; i < 4; ++i) {
+        if (use_outward_sector) continue;
         ik_target(i) = std::clamp(ik_target(i), params_.min_ecc_angle, params_.max_ecc_angle);
         // Singularity avoidance: enforce minimum bend of 15 deg (0.26 rad) along the configuration sign branch
         bool is_front = (i == FL || i == FR);
@@ -389,7 +408,8 @@ ControlOutput BalanceController::updateHybrid(
     // Smoothly taper off grf_torques to prevent torque blow-up as vertical Jacobian J_z -> 0
     for (int i = 0; i < NUM_LEGS; ++i) {
         double abs_q = std::abs(current_ecc_angles(i));
-        double taper = std::clamp(abs_q / 0.21, 0.0, 1.0);
+        double distance_to_vertical = use_outward_sector ? std::min(abs_q, M_PI - abs_q) : abs_q;
+        double taper = std::clamp(distance_to_vertical / 0.21, 0.0, 1.0);
         grf_torques(i) *= taper;
     }
 
@@ -402,9 +422,11 @@ ControlOutput BalanceController::updateHybrid(
     // ================================================================
     // 4. Apply startup trajectory (same smoothing as position mode)
     // ================================================================
+    const Eigen::Vector4d tracking_angles = use_outward_sector
+        ? alignOutwardEndpoints(current_ecc_angles) : current_ecc_angles;
     if (!initialized_) {
-        start_ecc_angles_ = current_ecc_angles;
-        prev_ecc_angles_ = current_ecc_angles;
+        start_ecc_angles_ = tracking_angles;
+        prev_ecc_angles_ = start_ecc_angles_;
         time_since_init_ = 0.0;
         initialized_ = true;
     }
@@ -446,7 +468,7 @@ ControlOutput BalanceController::updateHybrid(
 
     for (int i = 0; i < NUM_LEGS; ++i) {
         // tau_ik: PD position tracking torque (Section III.E.1 & III.E.3)
-        double pos_err = smoothed_ik(i) - current_ecc_angles(i);
+        double pos_err = smoothed_ik(i) - tracking_angles(i);
         tau_ik(i) = params_.kp_ik * pos_err;
 
         // Eq 9: Hybrid torque combination
@@ -513,8 +535,15 @@ ControlOutput BalanceController::updateHybrid(
             prev_compliance_shift_(i) = effective_alpha * raw_shift
                                       + (1.0 - effective_alpha) * prev_compliance_shift_(i);
 
-            compliant_ecc_pos(i) = std::clamp(smoothed_ik(i) + prev_compliance_shift_(i),
-                                              params_.min_ecc_angle, params_.max_ecc_angle);
+            compliant_ecc_pos(i) = smoothed_ik(i) + prev_compliance_shift_(i);
+            if (!use_outward_sector) {
+                compliant_ecc_pos(i) = std::clamp(compliant_ecc_pos(i), params_.min_ecc_angle, params_.max_ecc_angle);
+            }
+        }
+        if (use_outward_sector) {
+            const bool is_front = i == FL || i == FR;
+            compliant_ecc_pos(i) = std::clamp(compliant_ecc_pos(i),
+                                              is_front ? 0.0 : -M_PI, is_front ? M_PI : 0.0);
         }
     }
 

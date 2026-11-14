@@ -95,16 +95,69 @@ JOINT_NAMES = [
     'Wheel_joint_LF', 'Wheel_joint_RF', 'Wheel_joint_LB', 'Wheel_joint_RB',
 ]
 
-FSM_STATE_NAMES = [
-    "IDLE",
-    "FRONT_VAULT_180",
-    "STRADDLE_LEVELING",
-    "REAR_BELLY_REST",
-    "REAR_VAULT_LOOP",
-    "POST_CLIMB_RESET",
-    "CLIMBED_RUN",
-]
+STAIR_FSM_STATE_NAMES = {
+    1: "FRONT_WALL_CLIMB", 2: "STRADDLE_LEVELING", 3: "REAR_BELLY_REST",
+    4: "REAR_VAULT_LOOP", 5: "REAR_CREEP_ADVANCE", 6: "POST_CLIMB_RESET",
+    7: "CLIMBED_RUN",
+}
 
+
+NORMAL_FSM_STATE_NAMES = {
+    20: "NORMAL_FRONT_LIFT", 21: "NORMAL_ADVANCE", 22: "NORMAL_REAR_LIFT",
+    23: "NORMAL_CLEAR_EDGE", 24: "NORMAL_RECOVER",
+}
+
+
+class NormalCurbProbe:
+    """Measure the rise along both wheel tracks using MuJoCo collision surfaces."""
+
+    def __init__(self, model, chassis_id):
+        self.model = model
+        self.chassis_id = chassis_id
+        self.wheels = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "wheel_col_" + name)
+                       for name in ("LF", "RF", "LB", "RB")]
+        self.groups = np.ones(6, dtype=np.uint8)
+        self.hit = np.empty(1, dtype=np.int32)
+        self.down = np.array([0., 0., -1.])
+        self.terrain = ((model.body_weldid[model.geom_bodyid] == 0) &
+                        ((model.geom_contype | model.geom_conaffinity) != 0))
+
+    def surface_z(self, data, point, wheel_z):
+        origin = np.array([point[0], point[1], wheel_z + 0.60])
+        for _ in range(24):
+            distance = mujoco.mj_ray(self.model, data, origin, self.down,
+                                     self.groups, True, -1, self.hit)
+            if distance < 0:
+                return None
+            z = origin[2] - distance
+            if self.terrain[self.hit[0]]:
+                return z
+            # Ignore visual meshes and the robot's own links.
+            origin[2] = z - 1e-5
+        return None
+
+    def allows_entry(self, data):
+        if self.chassis_id < 0 or min(self.wheels) < 0:
+            return False
+        forward = data.xmat[self.chassis_id].reshape(3, 3)[:2, 0]
+        norm = np.linalg.norm(forward)
+        if norm < 1e-6:
+            return False
+        forward = forward / norm
+        rise = 0.0
+        for front, rear in zip(self.wheels[:2], self.wheels[2:]):
+            front_pos, rear_pos = data.geom_xpos[[front, rear]]
+            rear_ground = self.surface_z(data, rear_pos, rear_pos[2])
+            if rear_ground is None:
+                return False
+            radius = self.model.geom_size[front, 0]
+            for offset in np.linspace(0.0, 1.8 * radius, 8):
+                ahead = front_pos[:2] + offset * forward
+                z = self.surface_z(data, ahead, front_pos[2])
+                if z is None:
+                    return False
+                rise = max(rise, z - rear_ground)
+        return 0.008 <= rise <= 0.080 + 1e-6
 
 # -----------------------------------------------------------------------------
 # Interactive Mouse Camera Controller
@@ -215,7 +268,7 @@ def main():
     parser.add_argument('--keyframe', type=str, default='home',
                         help='Spawn location keyframe (rmuc2027: home/home_red, home_blue, central_passage, test_center, road_red, road_blue, ramp_red, ramp_blue, test_platform_top; playground: home, curb_5cm, curb_10cm, curb_20cm, plaza, ramp, bumps, rmuc_step)')
     parser.add_argument('--climb', type=str, default='normal', choices=['normal', 'stair', 'on', 'off'],
-                        help='Climb mode: normal (Mode 1: Paper standard, default), stair (Mode 2: 200mm stair), off')
+                        help='Climb mode: normal (Mode 1: automatic 0-80mm curbs, default), stair (Mode 2: 200mm stair), off')
     parser.add_argument('--model', type=str, default=None, help='Custom MJCF model path')
     args = parser.parse_args()
 
@@ -290,13 +343,14 @@ def main():
     lib.mobed_destroy.argtypes = [ctypes.c_void_p]
     lib.mobed_reset.argtypes = [ctypes.c_void_p]
     lib.mobed_set_robot_model.argtypes = [ctypes.c_void_p, ctypes.c_int]
-    lib.mobed_update_spin.restype = ctypes.c_int
-    lib.mobed_update_spin.argtypes = [
+    lib.mobed_update_spin_with_terrain.restype = ctypes.c_int
+    lib.mobed_update_spin_with_terrain.argtypes = [
         ctypes.c_void_p,
         ctypes.POINTER(SensorInputs),
         ctypes.POINTER(CommandInputs),
         ctypes.c_double,
         ctypes.POINTER(ActuatorOutputs),
+        ctypes.c_int,
         ctypes.c_int,
     ]
 
@@ -327,6 +381,7 @@ def main():
     glfw.swap_interval(1)  # Enable VSync for rock-solid 60/120 FPS Metal sync
 
     chassis_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, 'chassis')
+    curb_probe = NormalCurbProbe(model, chassis_id)
     camera_ctrl = InteractiveCamera(model, chassis_id)
 
     # Register mouse callbacks
@@ -591,9 +646,11 @@ def main():
 
                     # 4. Invoke native C++ control core
                     previous_spin_phase = spin_phase
-                    spin_phase = lib.mobed_update_spin(
+                    normal_entry_allowed = (current_climb_mode == 1 and c_in.vx >= 0.10
+                                            and curb_probe.allows_entry(data))
+                    spin_phase = lib.mobed_update_spin_with_terrain(
                         controller, ctypes.byref(s_in), ctypes.byref(c_in), CONTROL_DT,
-                        ctypes.byref(out), spin_request)
+                        ctypes.byref(out), spin_request, int(normal_entry_allowed))
                     if previous_spin_phase and not spin_phase:
                         spin_request = 0
                     if spin_phase:
@@ -770,7 +827,9 @@ def main():
             if now - last_hud_time > 0.10:
                 last_hud_time = now
                 fsm_idx = out.fsm_state
-                fsm_str = FSM_STATE_NAMES[fsm_idx] if 0 <= fsm_idx < len(FSM_STATE_NAMES) else f"STATE_{fsm_idx}"
+                states = (NORMAL_FSM_STATE_NAMES if current_climb_mode == 1 else
+                          STAIR_FSM_STATE_NAMES if current_climb_mode == 2 else {})
+                fsm_str = "IDLE" if fsm_idx == 0 else states.get(fsm_idx, f"MODE_MISMATCH_{fsm_idx}")
                 is_strafing = (abs(c_in.vy) > 0.05 and abs(c_in.vx) < 0.1)
                 mode_tag = "STRAFE(391mm)" if is_strafing else "ROAD(Turn+Bank)"
                 if spin_phase:
