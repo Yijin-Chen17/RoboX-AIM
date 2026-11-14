@@ -1,4 +1,5 @@
 #include "robot_control/core/mobed_controller_core.hpp"
+#include "robot_control/controllers/mit_servo.hpp"
 #include <cmath>
 #include <algorithm>
 #include <iostream>
@@ -454,9 +455,9 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             effort_cmd = 0.0;
         }
 
-        // DM-J4340P rated torque is 12 Nm.  Its 40 Nm value is peak torque
-        // and must not be used as a continuous position-control limit.
-        effort_cmd = std::clamp(effort_cmd, -12.0, 12.0);
+        // DM-J4340P-2EC V1.1 conservative rated torque is 9 Nm (27 Nm peak)
+        // and must not be exceeded as a continuous position-control limit.
+        effort_cmd = std::clamp(effort_cmd, -9.0, 9.0);
         out.ecc_effort[i] = effort_cmd;
 
         // Wheels
@@ -474,7 +475,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
         }
         out.wheel_vel[i] = target_wheel_vel * wheel_signs_[i];
 
-        // Traction torque injection (final wheel limit is the MS9010 2.2 Nm peak)
+        // Traction torque injection (final wheel limit is the LK MF9010 V2 17T 2.2 Nm peak)
         double wheel_effort = driving_controller_->getWheelTorques()(i) * wheel_signs_[i];
         if (task_controller_->isActive()) {
             auto state = task_controller_->getState();
@@ -512,6 +513,18 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
 // C-Linkage Implementations
 // ----------------------------------------------------------------------------
 extern "C" {
+
+void mobed_mit_servo_torques(const double* targets, const double* positions,
+                             const double* velocities, const double* torque_limits,
+                             double* torques) {
+    using namespace robot_control::controllers;
+    for (int i = 0; i < 8; ++i) {
+        const MitCommand command = i < 4
+            ? steeringMitCommand(targets[i], positions[i])
+            : eccentricMitCommand(targets[i]);
+        torques[i] = mitServoTorque(command, positions[i], velocities[i], torque_limits[i]);
+    }
+}
 
 void* mobed_create() {
     return new robot_control::MobedControllerCore();

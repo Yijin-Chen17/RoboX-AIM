@@ -1,0 +1,85 @@
+{
+  "job_id": "local_mwgek4uw_sp0o6z",
+  "source_file": "RMUL2027_3V3_V1.0.0.stp",
+  "coordinate_schema_version": 3,
+  "coordinate_frame": "z_up_x_forward",
+  "parts": [
+    {
+      "part_id": "part_001",
+      "name": "assembly_001",
+      "mesh_file": "meshes/part_001_assembly_001.stl",
+      "bbox": {
+        "min": [
+          -6300,
+          -4460,
+          -260
+        ],
+        "max": [
+          6300,
+          4140,
+          243
+        ]
+      },
+      "volume_estimate": 15880106379.698082,
+      "source_kind": "assembly_group",
+      "source_names": [
+        "solid_001"
+      ],
+      "source_part_count": 1,
+      "transform": {
+        "xyz": [
+          0,
+          -160,
+          -160
+        ],
+        "rpy": [
+          0,
+          0,
+          0
+        ]
+      },
+      "geometry_hint_file": "geometry/part_001.json"
+    },
+    {
+      "part_id": "part_002",
+      "name": "assembly_002",
+      "mesh_file": "meshes/part_002_assembly_002.stl",
+      "bbox": {
+        "min": [
+          -6300,
+          -4460,
+          240
+        ],
+        "max": [
+          6300,
+          4140,
+          260
+        ]
+      },
+      "volume_estimate": 247200000.00000015,
+      "source_kind": "assembly_group",
+      "source_names": [
+        "surface_shell_002"
+      ],
+      "source_part_count": 1,
+      "transform": {
+        "xyz": [
+          0,
+          -160,
+          -160
+        ],
+        "rpy": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "warnings": [
+    "CAD conversion completed locally in the browser; CAD file was not uploaded.",
+    "Imported using top-level subassemblies; generated 2 grouped CAD parts from 2 solids. STEP grouping matched 2 groups and 2 solids.",
+    "Imported 1 non-solid surface/shell geometries as 1 STL surface parts.",
+    "Applied import pre-rotation: X -90°."
+  ]
+}

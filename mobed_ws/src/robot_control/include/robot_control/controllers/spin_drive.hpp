@@ -10,6 +10,7 @@ namespace robot_control::controllers {
 
 class SpinDrive {
 public:
+    static constexpr double kYawRate = 8.0;
     enum class Phase { IDLE, ALIGNING, SPINNING, STOPPING };
 
     struct Output {
@@ -75,7 +76,7 @@ public:
         }
 
         if (phase_ == Phase::STOPPING && yaw_command_ == 0.0 &&
-            ((std::abs(yaw_rate) < 0.12 && speed < 0.12) || elapsed_ >= 1.5)) {
+            ((std::abs(yaw_rate) < 0.12 && speed < 0.12) || elapsed_ >= 2.0)) {
             phase_ = Phase::IDLE;
             translation_.setZero();
             lateral_trim_.setZero();
@@ -83,7 +84,7 @@ public:
         }
 
         const double target_yaw = phase_ == Phase::SPINNING ? spin_target : 0.0;
-        yaw_command_ += std::clamp(target_yaw - yaw_command_, -3.0 * dt, 3.0 * dt);
+        yaw_command_ += std::clamp(target_yaw - yaw_command_, -kYawAccel * dt, kYawAccel * dt);
         Eigen::Vector2d target_translation = Eigen::Vector2d::Zero();
         if (phase_ == Phase::SPINNING) {
             target_translation = translation *
@@ -149,7 +150,7 @@ private:
         require_release_ = require_release;
     }
 
-    static constexpr double kYawRate = 1.8;
+    static constexpr double kYawAccel = 8.0;
     static constexpr double kMaxTranslation = 0.20;
     Phase phase_ = Phase::IDLE;
     int direction_ = 1;

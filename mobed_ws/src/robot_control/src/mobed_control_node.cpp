@@ -797,9 +797,8 @@ private:
                               ? 0.0
                               : balance_out.ecc_torques(i) * ecc_signs_[i] * ff_weight;
 
-             // DM-J4340P rated continuous torque; 40 Nm peak is not a
-             // permissible sustained position-control limit.
-             effort_cmd = std::clamp(effort_cmd, -12.0, 12.0);
+             // DM-J4340P-2EC V1.1 conservative rated continuous torque (9 Nm; 27 Nm peak)
+             effort_cmd = std::clamp(effort_cmd, -9.0, 9.0);
             cmd_msg.effort.push_back(effort_cmd);
 
             // Wheels: math → CAD

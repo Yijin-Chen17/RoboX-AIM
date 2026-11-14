@@ -1,0 +1,17 @@
+{
+  "status": "ok",
+  "coordinate_schema_version": 3,
+  "coordinate_frame": "z_up_x_forward",
+  "rotation_convention": "Rz(yaw) * Ry(pitch) * Rx(roll)",
+  "rpy_unit": "radian",
+  "warnings": [
+    "Model has 1 unassigned CAD parts that will not be exported in any link: part_002",
+    "驱动尚未配置完整；模型保留原有关节和闭链约束，请在 SimReady 中补齐训练配置。"
+  ],
+  "errors": [],
+  "mjcf_file": "robot.xml",
+  "mesh_mode": "per_part",
+  "mesh_files": [],
+  "logical_mesh_count": 0,
+  "mesh_chunks_split": false
+}

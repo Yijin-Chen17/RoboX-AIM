@@ -324,8 +324,13 @@ ControlOutput BalanceController::updateHybrid(
     if (!is_in_startup) {
         double roll_current  = body_state.roll();
         double pitch_current = body_state.pitch();
-        double omega_x = body_state.angular_velocity.x();
-        double omega_y = body_state.angular_velocity.y();
+        // The estimator reports world-frame angular velocity. Apply roll and
+        // pitch damping in the same heading frame used by the balance PD.
+        const Eigen::Vector3d omega_heading =
+            Eigen::AngleAxisd(-body_state.yaw(), Eigen::Vector3d::UnitZ())
+            * body_state.angular_velocity;
+        double omega_x = omega_heading.x();
+        double omega_y = omega_heading.y();
 
         double roll_err  = roll_current - safe_roll;
         double pitch_err = pitch_current - safe_pitch;

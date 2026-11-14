@@ -14,7 +14,7 @@ Key Advantages:
 - Real-time mouse orbit (left drag), pan (right drag), and zoom (scroll).
 
 Usage:
-    ./.venv/bin/python3 mobed_sim_native.py [--arena rmuc|playground|flat] [--climb on|off]
+    ./.venv/bin/python3 mobed_sim_native.py [--arena rmuc2027|rmul2027_3v3|3v3|playground|flat] [--climb normal|stair|off]
 """
 
 import os
@@ -85,6 +85,7 @@ RMUC2027_XML         = 'models_standard/RMUC2027_MuJoCo/robot_rmuc2027.xml'
 RMUC2027_PHYSICS_XML = 'models_standard/RMUC2027_MuJoCo/robot_rmuc2027_physics.xml'
 RMUC2027_LITE_XML    = RMUC2027_PHYSICS_XML
 RMUC2027_HD_XML      = RMUC2027_XML
+RMUL2027_3V3_XML     = 'models_standard/RMUL2027_3V3/robot_rmul_3v3.xml'
 ROBOX_V2_XML          = 'models_standard/robox_v2/robox_v2.xml'
 FLAT_XML              = ROBOX_V2_XML
 DYLIB_PATH            = 'build_native/libmobed_control.dylib'
@@ -106,6 +107,52 @@ NORMAL_FSM_STATE_NAMES = {
     20: "NORMAL_FRONT_LIFT", 21: "NORMAL_ADVANCE", 22: "NORMAL_REAR_LIFT",
     23: "NORMAL_CLEAR_EDGE", 24: "NORMAL_RECOVER",
 }
+
+
+class MujocoMITActuators:
+    """Bridge MuJoCo feedback and the C++ MIT servo for steering and posture."""
+
+    def __init__(self, lib, model, data):
+        self.actuators = slice(0, 8)
+        joint_ids = np.array([model.joint(name).id for name in JOINT_NAMES[:8]])
+        if (not np.array_equal(model.actuator_trnid[self.actuators, 0], joint_ids)
+                or not np.all(model.actuator_trntype[self.actuators] == mujoco.mjtTrn.mjTRN_JOINT)
+                or not np.all(model.jnt_type[joint_ids] == mujoco.mjtJoint.mjJNT_HINGE)
+                or not np.all(model.actuator_gear[self.actuators, 0] == 1.0)
+                or not np.all(model.actuator_dyntype[self.actuators] == mujoco.mjtDyn.mjDYN_NONE)):
+            raise ValueError("MIT simulation requires direct, unit-gear steering and eccentric hinge actuators at slots 0–7")
+
+        self.qpos = model.jnt_qposadr[joint_ids]
+        self.qvel = model.jnt_dofadr[joint_ids]
+        self.position_target = data.qpos[self.qpos].copy()
+        self.torque_limits = np.where(
+            model.actuator_forcelimited[self.actuators],
+            np.max(np.abs(model.actuator_forcerange[self.actuators]), axis=1),
+            np.inf,
+        )
+        try:
+            self.compute_torques = lib.mobed_mit_servo_torques
+        except AttributeError as exc:
+            raise RuntimeError("Rebuild the native control library with scripts/build_native_dylib.sh for MIT control") from exc
+        vector = np.ctypeslib.ndpointer(dtype=np.float64, shape=(8,), flags="C_CONTIGUOUS")
+        self.compute_torques.argtypes = [vector] * 5
+        self.compute_torques.restype = None
+
+        # Use direct torque in the native runner while keeping the MJCF usable
+        # with MuJoCo's standalone viewer. Keep the model's actuator force limits.
+        model.actuator_gaintype[self.actuators] = mujoco.mjtGain.mjGAIN_FIXED
+        model.actuator_gainprm[self.actuators] = 0.0
+        model.actuator_gainprm[self.actuators, 0] = 1.0
+        model.actuator_biastype[self.actuators] = mujoco.mjtBias.mjBIAS_NONE
+        model.actuator_biasprm[self.actuators] = 0.0
+        model.actuator_ctrllimited[self.actuators] = False
+        self.apply(data)
+
+    def apply(self, data):
+        self.compute_torques(
+            self.position_target, data.qpos[self.qpos], data.qvel[self.qvel],
+            self.torque_limits, data.ctrl[self.actuators],
+        )
 
 
 class NormalCurbProbe:
@@ -261,12 +308,12 @@ def get_hardware_keyboard_state(window) -> dict:
 def main():
     parser = argparse.ArgumentParser(description='MobED / ROBOX V2 120 FPS Direct GLFW MuJoCo Simulator')
     parser.add_argument('--arena', type=str, default='rmuc2027',
-                        choices=['rmuc2027', 'rmuc2027_physics', 'rmuc2027_lite', 'rmuc2027_hd', 'robox', 'playground', 'flat'],
-                        help='Arena scene: rmuc2027 (default: RMUC 2027 V3 + ROBOX V2), rmuc2027_physics/rmuc2027_lite (Fast Collision-only), robox/flat (ROBOX V2 Flat Ground), playground (ROBOX V2 Obstacle testbench)')
+                        choices=['rmuc2027', 'rmuc2027_physics', 'rmuc2027_lite', 'rmuc2027_hd', 'rmul2027_3v3', '3v3', 'robox', 'playground', 'flat'],
+                        help='Arena scene: rmuc2027 (default: RMUC 2027 V3 + ROBOX V2), rmuc2027_physics/rmuc2027_lite (Fast Collision-only), rmul2027_3v3/3v3 (RMUL 2027 3V3 + ROBOX V2), robox/flat (ROBOX V2 Flat Ground), playground (ROBOX V2 Obstacle testbench)')
     parser.add_argument('--robot', type=str, default=None, choices=['robox', 'mobed'],
                         help='Robot model override: robox (ROBOX V2, 30kg) or mobed (legacy MobED). Auto-detected if omitted.')
     parser.add_argument('--keyframe', type=str, default='home',
-                        help='Spawn location keyframe (rmuc2027: home/home_red, home_blue, central_passage, test_center, road_red, road_blue, ramp_red, ramp_blue, test_platform_top; playground: home, curb_5cm, curb_10cm, curb_20cm, plaza, ramp, bumps, rmuc_step)')
+                        help='Spawn location keyframe (rmuc2027: home/home_red, home_blue, central_passage, test_center, road_red, road_blue, ramp_red, ramp_blue, test_platform_top; rmul2027_3v3/3v3: home/home_blue, home_red, center, step_approach, climb_west, climb_east, platform_top, bridge_approach; playground: home, curb_5cm, curb_10cm, curb_20cm, plaza, ramp, bumps, rmuc_step)')
     parser.add_argument('--climb', type=str, default='normal', choices=['normal', 'stair', 'on', 'off'],
                         help='Climb mode: normal (Mode 1: automatic 0-80mm curbs, default), stair (Mode 2: 200mm stair), off')
     parser.add_argument('--model', type=str, default=None, help='Custom MJCF model path')
@@ -279,6 +326,8 @@ def main():
         xml_path = RMUC2027_XML
     elif args.arena in ['rmuc2027_physics', 'rmuc2027_lite'] and os.path.exists(RMUC2027_PHYSICS_XML):
         xml_path = RMUC2027_PHYSICS_XML
+    elif args.arena in ['rmul2027_3v3', '3v3'] and os.path.exists(RMUL2027_3V3_XML):
+        xml_path = RMUL2027_3V3_XML
     elif args.arena in ['robox', 'flat'] and os.path.exists(ROBOX_V2_XML):
         xml_path = ROBOX_V2_XML
     elif args.arena == 'playground' and os.path.exists(PLAYGROUND_XML):
@@ -295,7 +344,7 @@ def main():
         robot_model_type = 0
     elif args.robot == 'mobed':
         robot_model_type = 1
-    elif 'robox' in xml_path.lower() or 'rmuc2027' in xml_path.lower() or 'playground' in xml_path.lower():
+    elif any(k in xml_path.lower() for k in ('robox', 'rmuc2027', 'rmul', '3v3', 'playground')):
         robot_model_type = 0
     else:
         robot_model_type = 1
@@ -319,10 +368,6 @@ def main():
     key_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, args.keyframe)
     if key_id != -1:
         mujoco.mj_resetDataKeyframe(model, data, key_id)
-        for i, name in enumerate(JOINT_NAMES[:8]):
-            jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
-            if jid != -1:
-                data.ctrl[i] = float(data.qpos[model.jnt_qposadr[jid]])
         applied = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_KEY, key_id)
         print(f"==> Keyframe '{applied}' applied successfully.")
     else:
@@ -331,14 +376,14 @@ def main():
             print(f"==> Notice: Keyframe '{args.keyframe}' not found. Available: {avail_keys}. Using default initial pose.")
         else:
             print(f"==> Notice: Keyframe '{args.keyframe}' not found. Using default initial pose.")
-    mujoco.mj_forward(model, data)
-
     # 3. Load native C++ algorithm dylib
     if not os.path.exists(DYLIB_PATH):
         raise FileNotFoundError(f"Native library {DYLIB_PATH} not found! Run scripts/build_native_dylib.sh first.")
 
     print(f'==> Loading MobED C++ Control Core from {DYLIB_PATH} ...')
     lib = ctypes.CDLL(DYLIB_PATH)
+    mit_actuators = MujocoMITActuators(lib, model, data)
+    mujoco.mj_forward(model, data)
     lib.mobed_create.restype = ctypes.c_void_p
     lib.mobed_destroy.argtypes = [ctypes.c_void_p]
     lib.mobed_reset.argtypes = [ctypes.c_void_p]
@@ -393,12 +438,12 @@ def main():
     scn = mujoco.MjvScene(model, maxgeom=max(4000, model.ngeom * 2))
     con = mujoco.MjrContext(model, mujoco.mjtFontScale.mjFONTSCALE_150)
 
-    # 5. Initialize Teleop Commander
+    # 5. Initialize Teleop Commander (2.0 m/s linear drive, 8.0 rad/s max stable spin)
     teleop_commander = RoboMasterTeleopCommander(
-        max_lin_vel=1.0,     # 1.0 m/s agile cruising
-        max_strafe_vel=0.8,  # 0.8 m/s lateral strafe
-        max_ang_vel=1.5,     # 1.5 rad/s turning
-        spin_ang_vel=1.8     # 1.8 rad/s in-place spin
+        max_lin_vel=2.0,     # 2.0 m/s forward/backward drive limit
+        max_strafe_vel=2.0,  # 2.0 m/s lateral strafe
+        max_ang_vel=2.2,     # 2.2 rad/s turning (gated by MAX_LATERAL_ACC at speed)
+        spin_ang_vel=8.0     # 8.0 rad/s max stable in-place spin
     )
 
     # Pre-allocate C structs
@@ -430,11 +475,11 @@ def main():
     print("  MobED Direct GLFW Native Simulation Ready (100% Conflict-Free)")
     print("="*70)
     print("  Controls (Directly in 3D Window, Full Multi-Key Support):")
-    print("    [W / S]       Drive Forward / Backward (1.0 m/s)")
+    print("    [W / S]       Drive Forward / Backward (up to 2.0 m/s)")
     print("    [W + A / D]   Agile Driving Curve + Motorcycle Lean (SIMULTANEOUS!)")
     print("    [A / D]       Pure Lateral Strafe (when stopped, 391mm Wide Stance)")
-    print("    [V / B]       Toggle continuous spin CCW / CW with field-relative WASD")
-    print("    [Q / E]       In-place Spin CCW / CW (1.8 rad/s)")
+    print("    [V / B]       Toggle continuous spin CCW / CW (8.0 rad/s) with field-relative WASD")
+    print("    [Q / E]       In-place Spin CCW / CW (8.0 rad/s)")
     print("    [Space / X]   Brake / Soft Stop (Release keys to coast to stop)")
     print("    [H]           Toggle Collision Overlay (Group 3: ON / OFF)")
     print("    [L]           Lower chassis to lowest stance (eccentric arms highest)")
@@ -497,26 +542,26 @@ def main():
     # Driver and gearbox efficiencies are not specified, therefore they are
     # intentionally not invented or folded into this displayed estimate.
     # Joint order: steering / eccentric posture / drive wheel.
-    # Motor order: DM-J4310P / DM-J4340P / MS9010 v3.
+    # Motor order: DM-J4310P-2EC / DM-J4340P-2EC V1.1 (9 Nm 24V) / LK MF9010 V2 (17T).
     motor_gear = np.array([10.0] * 4 + [40.0] * 4 + [1.0] * 4)
     motor_kt = np.array([3.5 / (4.9 * 10.0)] * 4 +
-                        [12.0 / (4.11 * 40.0)] * 4 +
-                        [0.54] * 4)
+                        [9.0 / (2.5 * 40.0)] * 4 +
+                        [0.16] * 4)
     motor_ke = np.array([
         60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
         60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
         60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
         60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
-        60.0 / (2.0 * np.pi * (56.0 * 40.0 / 24.0)),
-        60.0 / (2.0 * np.pi * (56.0 * 40.0 / 24.0)),
-        60.0 / (2.0 * np.pi * (56.0 * 40.0 / 24.0)),
-        60.0 / (2.0 * np.pi * (56.0 * 40.0 / 24.0)),
-        60.0 / (2.0 * np.pi * 6.7),
-        60.0 / (2.0 * np.pi * 6.7),
-        60.0 / (2.0 * np.pi * 6.7),
-        60.0 / (2.0 * np.pi * 6.7),
+        60.0 / (2.0 * np.pi * (52.5 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (52.5 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (52.5 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (52.5 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * 45.0),
+        60.0 / (2.0 * np.pi * 45.0),
+        60.0 / (2.0 * np.pi * 45.0),
+        60.0 / (2.0 * np.pi * 45.0),
     ])
-    motor_r = np.array([0.58] * 4 + [0.72] * 4 + [8.2] * 4)
+    motor_r = np.array([0.58] * 4 + [0.88] * 4 + [0.29] * 4)
 
     # Timing variables
     last_sim_time = time.perf_counter()
@@ -737,12 +782,12 @@ def main():
                             out.ecc_pos[i] = float(ecc_pose_hold_targets[i])
 
                     # 5. Apply commands to MuJoCo actuators
-                    for i in range(4):
-                        data.ctrl[i]     = out.steer_pos[i]
-                        data.ctrl[4 + i] = out.ecc_pos[i]
-                        data.ctrl[8 + i] = out.wheel_vel[i]
+                    mit_actuators.position_target[:4] = out.steer_pos
+                    mit_actuators.position_target[4:] = out.ecc_pos
+                    data.ctrl[8:12] = out.wheel_vel
 
-                # Step physics
+                # The drive-side MIT loop tracks the held command at physics rate.
+                mit_actuators.apply(data)
                 mujoco.mj_step(model, data)
                 sim_time_debt -= PHYSICS_DT
 

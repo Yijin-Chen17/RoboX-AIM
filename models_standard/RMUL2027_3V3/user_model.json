@@ -1,0 +1,54 @@
+{
+  "root_motion": "free",
+  "robot_name": "generated_robot",
+  "coordinate_schema_version": 3,
+  "coordinate_frame": "z_up_x_forward",
+  "links": [
+    {
+      "link_id": "link_001",
+      "name": "RMUL3v3",
+      "part_ids": [
+        "part_001"
+      ],
+      "mass": 19056.12765563756,
+      "inertia": {
+        "ixx": 116021.12071443425,
+        "iyy": 244447.37969184155,
+        "izz": 360014.21632697864,
+        "ixy": 18970.639846612106,
+        "ixz": 0.000006237209684147006,
+        "iyz": 0.0000011315232584809188
+      },
+      "visual_meshes": [],
+      "collision_meshes": [],
+      "sites": [],
+      "mass_properties": {
+        "source": "geometry",
+        "mass": 19056.12765563756,
+        "com_xyz_cad": [
+          -0.00003548322423309042,
+          -160.0000064357176,
+          -149.42645000961318
+        ],
+        "inertia_com_cad": {
+          "ixx": 116021.12071443425,
+          "iyy": 244447.37969184155,
+          "izz": 360014.21632697864,
+          "ixy": 18970.639846612106,
+          "ixz": 0.000006237209684147006,
+          "iyz": 0.0000011315232584809188
+        },
+        "quality": "exact_mesh",
+        "units": "kg_m2",
+        "volume_m3": 15.880106379697965
+      }
+    }
+  ],
+  "joints": [],
+  "base_origin_mode": "cad_original",
+  "base_origin_xyz": [
+    0,
+    -160,
+    -8.5
+  ]
+}

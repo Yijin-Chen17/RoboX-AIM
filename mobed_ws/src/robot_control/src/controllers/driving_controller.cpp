@@ -166,7 +166,7 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
 
     // ============================================================
     // 4. Chassis-Level Coherent Drive Scaling (RoboMaster Swerve Principle)
-    // Scale driving wheel speeds by cos^2(max_error) so wheels don't fight while rotating into alignment!
+    // Scale driving wheel speeds by cos^4(max_error) so wheels throttle down during realignment!
     // ============================================================
     double max_steer_error = 0.0;
     for (int i = 0; i < 4; ++i) {
@@ -181,7 +181,8 @@ std::tuple<Eigen::Vector4d, Eigen::Vector4d> DrivingController::update(
     if (params_.enable_coherent_drive_scaling) {
         if (max_steer_error > params_.steer_alignment_deadband) {
             double c = std::max(0.0, std::cos(max_steer_error));
-            coherent_drive_scale = c * c;
+            double c2 = c * c;
+            coherent_drive_scale = c2 * c2;
         }
     }
 

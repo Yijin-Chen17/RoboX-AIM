@@ -30,14 +30,15 @@ int main() {
         }
 
         for (int i = 0; i < 720; ++i) {
-            const double angle = direction * i * 0.018;
+            const double angle = direction * i * SpinDrive::kYawRate * 0.01;
             const double heading = std::remainder(3.0 + angle, 2.0 * M_PI);
-            const double rate = i == 0 ? 0.0 : direction * 1.8;
+            const double rate = i == 0 ? 0.0 : direction * SpinDrive::kYawRate;
             const auto output = step(direction, heading, rate, 0.0, forward);
-            if (i < 100) continue;
+            if (i < 150) continue;
             const Eigen::Vector2d field = Eigen::Rotation2Dd(angle) * output.twist.head<2>();
             if (output.phase != SpinDrive::Phase::SPINNING || field.x() < 0.10 ||
-                std::abs(field.y()) > 1e-8 || std::abs(output.twist.z() - direction * 1.8) > 1e-8) {
+                std::abs(field.y()) > 1e-8 ||
+                std::abs(output.twist.z() - direction * SpinDrive::kYawRate) > 1e-8) {
                 std::cerr << "Spin lost the entry heading or steady yaw rate\n";
                 return EXIT_FAILURE;
             }
@@ -52,11 +53,11 @@ int main() {
             }
         }
 
-        const auto braking = step(0, 3.0, direction * 1.8, 0.0, stopped);
-        const auto emergency = step(direction, 3.0, direction * 1.8, 0.0, stopped, true);
+        const auto braking = step(0, 3.0, direction * SpinDrive::kYawRate, 0.0, stopped);
+        const auto emergency = step(direction, 3.0, direction * SpinDrive::kYawRate, 0.0, stopped, true);
         const auto held = step(direction, 3.0, 0.0, 0.0, stopped);
         if (braking.phase != SpinDrive::Phase::STOPPING ||
-            std::abs(braking.twist.z()) >= 1.8 || !emergency.twist.isZero() || held.ownsDrive()) {
+            std::abs(braking.twist.z()) >= SpinDrive::kYawRate || !emergency.twist.isZero() || held.ownsDrive()) {
             std::cerr << "Spin exit or emergency-stop rearm failed\n";
             return EXIT_FAILURE;
         }

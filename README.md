@@ -51,6 +51,14 @@ pip install -r requirements.txt
 python3 mobed_sim_native.py
 ```
 
+转向和偏心臂的 MIT 指令定义及仿真力矩计算在
+`mobed_ws/src/robot_control/include/robot_control/controllers/mit_servo.hpp`。
+更新后先运行 `./scripts/build_native_dylib.sh`。原生仿真每个物理步调用 C++ 计算力矩。
+
+接实车时，先把控制器的舵角和偏心臂目标角转换到各电机的输出轴坐标，校准方向和零位。
+用对应的 `steeringMitCommand` 或 `eccentricMitCommand` 生成五个 MIT 指令字段，再按电机配置编码成 CAN 帧。
+实车驱动器根据编码器反馈闭合 MIT 环。头文件里的增益是仿真初值，实车需分别带载标定。
+
 #### 常用运行参数：
 
 - **场景选项**（`--arena`）：

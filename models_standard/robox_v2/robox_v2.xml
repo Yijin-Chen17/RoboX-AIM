@@ -36,7 +36,7 @@
 
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1" directional="true" />
-    <geom name="floor" type="plane" size="0 0 0.05" material="groundplane" friction="1.0 0.005 0.0001" />
+    <geom name="floor" type="plane" size="0 0 0.05" material="groundplane" friction="0.85 0.005 0.0001" />
 
     <!-- Robot Chassis & Suspensions (30.00 kg Standard) -->
     <body name="chassis" pos="0 0 0.228">
@@ -79,7 +79,7 @@
             <joint name="Wheel_joint_LF" type="hinge" pos="0 0 0" axis="0 -1 0" damping="0.005" actuatorfrcrange="-3 3" actuatorfrclimited="true" />
             <inertial pos="0 0.018 0" mass="0.7515" diaginertia="0.0025 0.004 0.0025" />
             <geom name="Wheel_joint_LF_mesh" pos="-0.222574 -0.258024 -0.0165" type="mesh" mesh="part_10" contype="0" conaffinity="0" group="1" rgba="0.25 0.25 0.25 1" density="0" />
-            <geom name="wheel_col_LF" type="cylinder" size="0.100 0.018" pos="0 0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+            <geom name="wheel_col_LF" type="cylinder" size="0.100 0.018" pos="0 0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
           </body>
         </body>
       </body>
@@ -103,7 +103,7 @@
             <joint name="Wheel_joint_RF" type="hinge" pos="0 0 0" axis="0 1 0" damping="0.005" actuatorfrcrange="-3 3" actuatorfrclimited="true" />
             <inertial pos="0 -0.018 0" mass="0.7515" diaginertia="0.0025 0.004 0.0025" />
             <geom name="Wheel_joint_RF_mesh" pos="-0.222574 0.258024 -0.0165" type="mesh" mesh="part_11" contype="0" conaffinity="0" group="1" rgba="0.25 0.25 0.25 1" density="0" />
-            <geom name="wheel_col_RF" type="cylinder" size="0.100 0.018" pos="0 -0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+            <geom name="wheel_col_RF" type="cylinder" size="0.100 0.018" pos="0 -0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
           </body>
         </body>
       </body>
@@ -127,7 +127,7 @@
             <joint name="Wheel_joint_LB" type="hinge" pos="0 0 0" axis="0 -1 0" damping="0.005" actuatorfrcrange="-3 3" actuatorfrclimited="true" />
             <inertial pos="0 0.018 0" mass="0.7515" diaginertia="0.0025 0.004 0.0025" />
             <geom name="Wheel_joint_LB_mesh" pos="0.222574 -0.258024 -0.0165" type="mesh" mesh="part_04" contype="0" conaffinity="0" group="1" rgba="0.25 0.25 0.25 1" density="0" />
-            <geom name="wheel_col_LB" type="cylinder" size="0.100 0.018" pos="0 0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+            <geom name="wheel_col_LB" type="cylinder" size="0.100 0.018" pos="0 0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
           </body>
         </body>
       </body>
@@ -151,7 +151,7 @@
             <joint name="Wheel_joint_RB" type="hinge" pos="0 0 0" axis="0 1 0" damping="0.005" actuatorfrcrange="-3 3" actuatorfrclimited="true" />
             <inertial pos="0 -0.018 0" mass="0.7515" diaginertia="0.0025 0.004 0.0025" />
             <geom name="Wheel_joint_RB_mesh" pos="0.222574 0.258024 -0.0165" type="mesh" mesh="part_07" contype="0" conaffinity="0" group="1" rgba="0.25 0.25 0.25 1" density="0" />
-            <geom name="wheel_col_RB" type="cylinder" size="0.100 0.018" pos="0 -0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
+            <geom name="wheel_col_RB" type="cylinder" size="0.100 0.018" pos="0 -0.018 0" euler="1.5707963 0 0" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" group="3" rgba="0 0.8 0.8 0.3" />
           </body>
         </body>
       </body>
@@ -160,23 +160,23 @@
 
   <!-- Actuators: Migrated and Calibrated for ROBOX V2 (30.00 kg) -->
   <actuator>
-    <!-- Steering Actuators (Position Control: Kp=300, Kv=30, Max Torque: 3.5 Nm) -->
-    <position name="act_steer_FL" joint="Steering_joint_LF" kp="300" kv="30" forcelimited="true" forcerange="-3.5 3.5" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
-    <position name="act_steer_FR" joint="Steering_joint_RF" kp="300" kv="30" forcelimited="true" forcerange="-3.5 3.5" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
-    <position name="act_steer_RL" joint="Steering_joint_LB" kp="300" kv="30" forcelimited="true" forcerange="-3.5 3.5" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
-    <position name="act_steer_RR" joint="Steering_joint_RB" kp="300" kv="30" forcelimited="true" forcerange="-3.5 3.5" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
+    <!-- Steering Actuators (DM-J4310P-2EC: 3.5 Nm rated, 12.5 Nm peak; conservative physical peak clamp 7.0 Nm) -->
+    <position name="act_steer_FL" joint="Steering_joint_LF" kp="300" kv="30" forcelimited="true" forcerange="-7 7" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
+    <position name="act_steer_FR" joint="Steering_joint_RF" kp="300" kv="30" forcelimited="true" forcerange="-7 7" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
+    <position name="act_steer_RL" joint="Steering_joint_LB" kp="300" kv="30" forcelimited="true" forcerange="-7 7" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
+    <position name="act_steer_RR" joint="Steering_joint_RB" kp="300" kv="30" forcelimited="true" forcerange="-7 7" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
 
-    <!-- Eccentric Posture Actuators (Position Control: Kp=300, Kv=30, Max Torque: 12.0 Nm) -->
+    <!-- Eccentric Posture Actuators (DM-J4340P-2EC V1.1: 9.0 Nm continuous feedforward, 27 Nm peak; physical clamp 12.0 Nm) -->
     <position name="act_ecc_FL" joint="Posture_control_joint_LF" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
     <position name="act_ecc_FR" joint="Posture_control_joint_RF" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
     <position name="act_ecc_RL" joint="Posture_control_joint_LB" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
     <position name="act_ecc_RR" joint="Posture_control_joint_RB" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
 
-    <!-- Wheel Velocity Actuators (Velocity Control: Kv=10, Max Torque: 2.2 Nm) -->
-    <velocity name="act_wheel_FL" joint="Wheel_joint_LF" kv="10" forcelimited="true" forcerange="-2.2 2.2" ctrllimited="true" ctrlrange="-50 50" />
-    <velocity name="act_wheel_FR" joint="Wheel_joint_RF" kv="10" forcelimited="true" forcerange="-2.2 2.2" ctrllimited="true" ctrlrange="-50 50" />
-    <velocity name="act_wheel_RL" joint="Wheel_joint_LB" kv="10" forcelimited="true" forcerange="-2.2 2.2" ctrllimited="true" ctrlrange="-50 50" />
-    <velocity name="act_wheel_RR" joint="Wheel_joint_RB" kv="10" forcelimited="true" forcerange="-2.2 2.2" ctrllimited="true" ctrlrange="-50 50" />
+    <!-- Wheel Velocity Actuators (LK MF9010 V2 17T: max 2.2 Nm, rated 1080 rpm = 113.10 rad/s) -->
+    <velocity name="act_wheel_FL" joint="Wheel_joint_LF" kv="10" forcelimited="true" forcerange="-2.2 2.2" ctrllimited="true" ctrlrange="-113.10 113.10" />
+    <velocity name="act_wheel_FR" joint="Wheel_joint_RF" kv="10" forcelimited="true" forcerange="-2.2 2.2" ctrllimited="true" ctrlrange="-113.10 113.10" />
+    <velocity name="act_wheel_RL" joint="Wheel_joint_LB" kv="10" forcelimited="true" forcerange="-2.2 2.2" ctrllimited="true" ctrlrange="-113.10 113.10" />
+    <velocity name="act_wheel_RR" joint="Wheel_joint_RB" kv="10" forcelimited="true" forcerange="-2.2 2.2" ctrllimited="true" ctrlrange="-113.10 113.10" />
   </actuator>
 
   <!-- Collision Excludes Between Adjacent Links -->

@@ -11,8 +11,8 @@ namespace robot_control {
 namespace controllers {
 
 struct DrivingControllerParams {
-    double max_wheel_accel = 20.0; // rad/s^2
-    double max_steer_vel = 5.0;    // rad/s
+    double max_wheel_accel = 20.0; // rad/s^2 (keeps 4*2.2 Nm MF9010 V2 17T well inside traction limit)
+    double max_steer_vel = 12.0;   // rad/s (within DM-J4310P-2EC 24V rated 120 rpm = 12.57 rad/s)
 
     // ---- Swerve Steering Optimization & Coherent Drive Gating ----
     // Enables coherent whole-body velocity scaling to preserve instantaneous ICR during steering transitions
@@ -32,20 +32,20 @@ struct DrivingControllerParams {
     double bank_angle_filter = 0.05;  // 0=frozen, 1=instant
 
     // ---- Low-Level Actuator Torque Loops (Paper Fig. 8 & Dual-Layer Mode) ----
-    double kp_steer = 300.0;        // Nm/rad (steering PD proportional gain)
-    double kd_steer = 30.0;         // Nm·s/rad (steering PD derivative gain)
+    double kp_steer = 360.0;        // Nm/rad (DM-J4310P-2EC MIT Kp <= 500)
+    double kd_steer = 5.0;          // Nm·s/rad (DM-J4310P-2EC MIT hardware Kd ceiling = 5.0)
     double kp_wheel = 15.0;         // Nm/(rad/s) (wheel speed PI proportional gain)
     double ki_wheel = 0.5;          // Nm/rad (wheel speed PI integral gain)
-    double max_steer_torque = 3.5; // Nm (DM-J4310P rated torque)
-    double max_wheel_torque = 2.2;  // Nm (MS9010 v3 peak torque)
+    double max_steer_torque = 7.0;  // Nm (DM-J4310P-2EC conservative peak; rated 3.5 Nm)
+    double max_wheel_torque = 2.2;  // Nm (LK MF9010 V2 17T max torque)
 
     // Maximum wheel speed contribution from joint motion (rad/s).
     double max_rolling_compensation = 1.2;
 
     // ---- Velocity & Speed Saturation Limits ----
-    double max_linear_vel  = 1.2;   // m/s (maximum chassis planar translation speed)
-    double max_angular_vel = 2.0;   // rad/s (maximum chassis yaw rotation rate)
-    double max_wheel_speed = 15.0;  // rad/s (~1.5 m/s maximum wheel rotational speed)
+    double max_linear_vel  = 2.0;   // m/s (user linear driving limit)
+    double max_angular_vel = 8.2;   // rad/s (supports up to 8.0 rad/s spin mode cleanly)
+    double max_wheel_speed = 113.0; // rad/s (~1079 rpm, within LK MF9010 V2 17T rated 1080 rpm = 113.10 rad/s)
 };
 
 class DrivingController {

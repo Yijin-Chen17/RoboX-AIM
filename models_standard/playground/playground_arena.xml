@@ -29,7 +29,7 @@
     <camera name="overview_cam" pos="0 -10 9" xyaxes="1 0 0 0 0.7 0.7" />
 
     <!-- Main Floor (16m x 16m) -->
-    <geom name="floor" type="plane" size="8 8 0.1" material="grid_mat" contype="1" conaffinity="1" friction="1 0.005 0.0001" />
+    <geom name="floor" type="plane" size="8 8 0.1" material="grid_mat" contype="1" conaffinity="1" friction="0.85 0.005 0.0001" />
 
     <!-- Perimeter Boundary Walls -->
     <geom name="wall_n" type="box" size="0.1 8.0 0.3" pos="8.0 0 0.3" rgba="0.55 0.6 0.65 0.7" contype="1" conaffinity="1" />
@@ -49,17 +49,17 @@
     <!-- Track 1A: 纵向 10.2° 爬坡测试道 (Y = 0.8m) -->
     <!-- 上坡 (run=1.8m, rise=0.32m, slope=10.08°, length=1.828m) -->
     <geom name="z1_ramp_up" type="box" size="0.914 0.6 0.02" pos="3.4 0.8 0.16" euler="0 -0.176 0"
-          rgba="0.85 0.68 0.45 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.85 0.68 0.45 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
     <!-- 坡顶高台 (run=1.4m, height=0.32m) -->
     <geom name="z1_plateau" type="box" size="0.7 0.6 0.16" pos="5.0 0.8 0.16"
-          rgba="0.8 0.62 0.38 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.8 0.62 0.38 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
     <!-- 下坡 (run=1.8m, drop=0.32m, slope=10.08°) -->
     <geom name="z1_ramp_down" type="box" size="0.914 0.6 0.02" pos="6.6 0.8 0.16" euler="0 0.176 0"
-          rgba="0.85 0.68 0.45 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.85 0.68 0.45 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
 
     <!-- Track 1B: 侧向 9.5° 横滚倾斜道 (Y = -0.8m, length=5.0m, width=1.3m) -->
     <geom name="z1_side_bank" type="box" size="2.5 0.65 0.02" pos="5.0 -0.8 0.12" euler="0.165 0 0"
-          rgba="0.82 0.72 0.52 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.82 0.72 0.52 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
 
     <!-- =================================================================== -->
     <!-- ZONE 2: 台阶与路肩越障区 (+Y: Y in [2.5, 7.5])                       -->
@@ -70,29 +70,29 @@
 
     <!-- Lane 2A: 5cm (0.05m) 单级垂直路肩台阶 (X = -1.2m, Y in [3.0, 5.0]) -->
     <geom name="z2_curb_5cm" type="box" size="0.45 1.0 0.025" pos="-1.2 4.0 0.025"
-          rgba="0.45 0.55 0.75 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.45 0.55 0.75 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <!-- 5cm 后方缓坡下台阶 (h=0.05m, length=1.0m, slope=2.86°) -->
     <geom name="z2_curb_5cm_ramp" type="box" size="0.45 0.5 0.015" pos="-1.2 5.5 0.025" euler="-0.05 0 0"
-          rgba="0.5 0.6 0.8 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.5 0.6 0.8 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
 
     <!-- Lane 2B: 10cm (0.10m) 单级垂直路肩台阶 (X = 0.0m, Y in [3.0, 5.0]) -->
     <geom name="z2_curb_10cm" type="box" size="0.45 1.0 0.05" pos="0.0 4.0 0.05"
-          rgba="0.35 0.45 0.7 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.35 0.45 0.7 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <!-- 10cm 后方缓坡下台阶 (h=0.10m, length=1.0m, slope=5.71°) -->
     <geom name="z2_curb_10cm_ramp" type="box" size="0.45 0.5 0.015" pos="0.0 5.5 0.05" euler="-0.0997 0 0"
-          rgba="0.4 0.5 0.75 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.4 0.5 0.75 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
 
     <!-- Lane 2C: two 200mm steps, each with a 700mm platform
          (X = 1.2m, approach direction +Y) -->
     <!-- First 200mm step: platform Y in [3.0, 3.7] -->
     <geom name="z2_curb_2step_lower" type="box" size="0.45 0.35 0.10" pos="1.2 3.35 0.10"
-          rgba="0.25 0.35 0.6 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.25 0.35 0.6 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <!-- Second 200mm step: platform Y in [3.7, 4.4], total height 400mm -->
     <geom name="z2_curb_2step_upper" type="box" size="0.45 0.35 0.20" pos="1.2 4.05 0.20"
-          rgba="0.25 0.35 0.6 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.25 0.35 0.6 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <!-- 400mm rear descent ramp after the two 700mm platforms -->
     <geom name="z2_curb_2step_ramp" type="box" size="0.45 0.5 0.015" pos="1.2 4.9 0.2" euler="-0.3805 0 0"
-          rgba="0.3 0.4 0.65 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.3 0.4 0.65 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
 
     <!-- =================================================================== -->
     <!-- ZONE 3: 减速带与非对称起伏路面 (-X: X in [-7.5, -2.5])              -->
@@ -102,36 +102,36 @@
 
     <!-- Track 3A: 连续减速带 (Y = 0.8m) - 半圆柱凸起 (r=3.5cm, width=1.2m) -->
     <geom name="z3_bump1" type="cylinder" size="0.035 0.55" pos="-3.2 0.8 0.015" euler="1.5708 0 0"
-          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
     <geom name="z3_bump2" type="cylinder" size="0.035 0.55" pos="-3.8 0.8 0.015" euler="1.5708 0 0"
-          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
     <geom name="z3_bump3" type="cylinder" size="0.035 0.55" pos="-4.6 0.8 0.015" euler="1.5708 0 0"
-          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
     <geom name="z3_bump4" type="cylinder" size="0.035 0.55" pos="-5.6 0.8 0.015" euler="1.5708 0 0"
-          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
     <geom name="z3_bump5" type="cylinder" size="0.035 0.55" pos="-6.8 0.8 0.015" euler="1.5708 0 0"
-          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.9 0.3 0.2 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
 
     <!-- Track 3B: 左右非对称交错颠簸路 (Y = -0.8m) - 考核导纳悬挂滤波 -->
     <!-- 左轮颠簸块 (Y = -0.55m) -->
     <geom name="z3_cobble_L1" type="box" size="0.15 0.15 0.015" pos="-3.2 -0.55 0.015"
-          rgba="0.8 0.4 0.3 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.8 0.4 0.3 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <geom name="z3_cobble_L2" type="box" size="0.15 0.15 0.015" pos="-4.2 -0.55 0.015"
-          rgba="0.8 0.4 0.3 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.8 0.4 0.3 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <geom name="z3_cobble_L3" type="box" size="0.15 0.15 0.018" pos="-5.2 -0.55 0.018"
-          rgba="0.8 0.4 0.3 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.8 0.4 0.3 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <geom name="z3_cobble_L4" type="box" size="0.15 0.15 0.015" pos="-6.2 -0.55 0.015"
-          rgba="0.8 0.4 0.3 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.8 0.4 0.3 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
 
     <!-- 右轮颠簸块 (Y = -1.05m) - 错位布置 -->
     <geom name="z3_cobble_R1" type="box" size="0.15 0.15 0.015" pos="-3.7 -1.05 0.015"
-          rgba="0.75 0.35 0.25 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.75 0.35 0.25 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <geom name="z3_cobble_R2" type="box" size="0.15 0.15 0.018" pos="-4.7 -1.05 0.018"
-          rgba="0.75 0.35 0.25 1" contype="1" friction="1.1 0.005 0.0001" />
+          rgba="0.75 0.35 0.25 1" contype="1" friction="0.90 0.005 0.0001" />
     <geom name="z3_cobble_R3" type="box" size="0.15 0.15 0.015" pos="-5.7 -1.05 0.015"
-          rgba="0.75 0.35 0.25 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.75 0.35 0.25 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
     <geom name="z3_cobble_R4" type="box" size="0.15 0.15 0.015" pos="-6.7 -1.05 0.015"
-          rgba="0.75 0.35 0.25 1" contype="1" conaffinity="1" friction="1.1 0.005 0.0001" />
+          rgba="0.75 0.35 0.25 1" contype="1" conaffinity="1" friction="0.90 0.005 0.0001" />
 
     <!-- =================================================================== -->
     <!-- ZONE 4: 连续绕桩与向心倾角弯道 (-Y: Y in [-7.5, -2.5])              -->
@@ -162,7 +162,7 @@
 
     <!-- 侧方倾角弯道平台 (Banked Corner Pad: X=1.1m, Y=-5.0m, 内倾 6°) -->
     <geom name="z4_banked_curve" type="box" size="0.65 2.2 0.015" pos="1.1 -5.0 0.045" euler="0 -0.105 0"
-          rgba="0.55 0.75 0.6 1" contype="1" conaffinity="1" friction="1.2 0.005 0.0001" />
+          rgba="0.55 0.75 0.6 1" contype="1" conaffinity="1" friction="0.95 0.005 0.0001" />
 
     <!-- =================================================================== -->
     <!-- ZONE 5: RMUC 2027 中央高地二级台阶 (NE: X in [2.8, 7.6], Y in [2.3, 7.5]) -->
@@ -174,30 +174,30 @@
     <geom name="z5_pad" type="box" size="2.4 2.6 0.001" pos="5.2 4.9 0.001" rgba="0.82 0.80 0.75 1" contype="0" conaffinity="0" />
 
     <!-- Step 1: 200mm high, 800mm deep trapezoidal platform -->
-    <geom name="z5_rmuc_step1_L" type="mesh" mesh="rmuc_step1_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_step1_L_lip" type="mesh" mesh="rmuc_step1_L_lip" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_step1_R" type="mesh" mesh="rmuc_step1_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_step1_R_lip" type="mesh" mesh="rmuc_step1_R_lip" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step1_L" type="mesh" mesh="rmuc_step1_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step1_L_lip" type="mesh" mesh="rmuc_step1_L_lip" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step1_R" type="mesh" mesh="rmuc_step1_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step1_R_lip" type="mesh" mesh="rmuc_step1_R_lip" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
 
     <!-- Step 2: +150mm curb (350mm above floor), 150mm deep, 2.988m climbable opening -->
-    <geom name="z5_rmuc_step2_L" type="mesh" mesh="rmuc_step2_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_step2_R" type="mesh" mesh="rmuc_step2_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step2_L" type="mesh" mesh="rmuc_step2_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_step2_R" type="mesh" mesh="rmuc_step2_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
 
     <!-- Flanking 350mm->400mm transitions & 400mm outer border curbs -->
-    <geom name="z5_rmuc_curb_trans_L" type="mesh" mesh="rmuc_curb_trans_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_curb_trans_R" type="mesh" mesh="rmuc_curb_trans_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_curb_wall_L1" type="mesh" mesh="rmuc_curb_wall_L1" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_curb_wall_L2" type="mesh" mesh="rmuc_curb_wall_L2" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_curb_wall_L3" type="mesh" mesh="rmuc_curb_wall_L3" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_curb_wall_R1" type="mesh" mesh="rmuc_curb_wall_R1" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
-    <geom name="z5_rmuc_curb_wall_R2" type="mesh" mesh="rmuc_curb_wall_R2" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_trans_L" type="mesh" mesh="rmuc_curb_trans_L" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_trans_R" type="mesh" mesh="rmuc_curb_trans_R" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_L1" type="mesh" mesh="rmuc_curb_wall_L1" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_L2" type="mesh" mesh="rmuc_curb_wall_L2" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_L3" type="mesh" mesh="rmuc_curb_wall_L3" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_R1" type="mesh" mesh="rmuc_curb_wall_R1" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+    <geom name="z5_rmuc_curb_wall_R2" type="mesh" mesh="rmuc_curb_wall_R2" rgba="0.68 0.63 0.51 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
 
     <!-- Central Highland Inner Deck (300mm high, -50mm below Step 2 curb) -->
     <geom name="z5_rmuc_deck" type="box" size="2.1605 0.8000 0.1500" pos="5.2118 5.3500 0.1500"
-          rgba="0.69 0.73 0.76 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+          rgba="0.69 0.73 0.76 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
 
     <!-- Rear Descent Ramp (300mm -> 0mm, Y in [6.15, 7.35], 14.04 deg) -->
     <geom name="z5_rmuc_descent_ramp" type="box" size="2.1605 0.618466 0.015" pos="5.2118 6.74636 0.13545" euler="-0.244979 0 0"
-          rgba="0.62 0.67 0.71 1" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
+          rgba="0.62 0.67 0.71 1" contype="1" conaffinity="1" friction="0.80 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" />
   </worldbody>
 </mujoco>

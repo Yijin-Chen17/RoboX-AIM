@@ -19,10 +19,11 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
-from mobed_sim_native import ActuatorOutputs, CommandInputs, NormalCurbProbe, SensorInputs
+from mobed_sim_native import ActuatorOutputs, CommandInputs, MujocoMITActuators, NormalCurbProbe, SensorInputs
 
 
-def run(library, height, mode=1, speed=0.25, duration=25.0, *, scene=None, keyframe="home"):
+def run(library, height, mode=1, speed=0.25, duration=25.0, *, scene=None,
+        keyframe="home", servo_library=None):
     library = Path(library).resolve()
     lib = ctypes.CDLL(str(library))
     lib.mobed_create.restype = ctypes.c_void_p
@@ -45,8 +46,10 @@ def run(library, height, mode=1, speed=0.25, duration=25.0, *, scene=None, keyfr
         model.opt.timestep = 0.002
     data = mujoco.MjData(model)
     mujoco.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
+    servo_lib = lib if servo_library is None else ctypes.CDLL(str(Path(servo_library).resolve()))
+    mit_actuators = MujocoMITActuators(servo_lib, model, data)
     mujoco.mj_forward(model, data)
-    return simulate(lib, update, has_terrain_entry, library, model, data, height, mode, speed, duration)
+    return simulate(lib, update, has_terrain_entry, library, model, data, mit_actuators, height, mode, speed, duration)
 
 
 def make_test_step(height):
@@ -63,7 +66,7 @@ def make_test_step(height):
     return mujoco.MjModel.from_xml_string(ET.tostring(root, encoding="unicode"))
 
 
-def simulate(lib, update, has_terrain_entry, library, model, data, height, mode, speed, duration):
+def simulate(lib, update, has_terrain_entry, library, model, data, mit_actuators, height, mode, speed, duration):
     joints = model.actuator_trnid[:, 0]
     qpos_address = model.jnt_qposadr[joints]
     dof_address = model.jnt_dofadr[joints]
@@ -104,15 +107,17 @@ def simulate(lib, update, has_terrain_entry, library, model, data, height, mode,
                     update(*args, int(allowed))
                 else:
                     update(*args)
-                data.ctrl[:4] = out.steer_pos
-                data.ctrl[4:8] = out.ecc_pos
+                mit_actuators.position_target[:4] = out.steer_pos
+                mit_actuators.position_target[4:] = out.ecc_pos
                 data.ctrl[8:12] = out.wheel_vel
                 if out.fsm_state != previous_state:
                     events.append([round(time, 2), out.fsm_state])
                     previous_state = out.fsm_state
                 max_tilt = max(max_tilt, abs(np.arcsin(np.clip(-rotation[2, 0], -1, 1))))
-                samples.append([time, *data.qpos[:7], *data.ctrl, out.fsm_state, *out.ecc_effort])
+                samples.append([time, *data.qpos[:7], *out.steer_pos, *out.ecc_pos,
+                                *out.wheel_vel, out.fsm_state, *out.ecc_effort])
                 assert np.isfinite(data.qpos).all(), "non-finite simulation state"
+            mit_actuators.apply(data)
             mujoco.mj_step(model, data)
         wheel_x = data.geom_xpos[wheel_ids, 0]
         wheel_z = data.geom_xpos[wheel_ids, 2] - 0.1
@@ -165,7 +170,8 @@ def main():
         assert all(0 <= event[1] <= 7 for event in result["events"]), "stair mode entered a normal state"
         assert (wheel_x > 0.9).all() and np.max(np.abs(wheel_z - height)) < 0.004
         if args.baseline_library:
-            baseline, _, _, _ = run(args.baseline_library, height, mode=2, speed=0.6, duration=12)
+            baseline, _, _, _ = run(args.baseline_library, height, mode=2, speed=0.6, duration=12,
+                                    servo_library=args.library)
             np.testing.assert_array_equal(current, baseline, err_msg="stair behavior changed")
     print("Small-curb coverage and independent stair checks passed")
 

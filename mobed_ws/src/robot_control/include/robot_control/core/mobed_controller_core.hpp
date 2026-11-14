@@ -152,6 +152,10 @@ private:
 // C-Linkage Exports for Python ctypes / native integration
 // ----------------------------------------------------------------------------
 extern "C" {
+    // Eight joint values in actuator order: four steering, four eccentric.
+    void mobed_mit_servo_torques(const double* targets, const double* positions,
+                                 const double* velocities, const double* torque_limits,
+                                 double* torques);
     void* mobed_create();
     void  mobed_destroy(void* handle);
     void  mobed_reset(void* handle);

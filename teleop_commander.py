@@ -22,11 +22,11 @@ class RoboMasterTeleopCommander:
         self.MAX_ANG_VEL    = max_ang_vel    # rad/s (最高转弯角速度)
         self.SPIN_ANG_VEL   = spin_ang_vel   # rad/s (最高自转角速度)
         
-        # ---------------- 加减速度动力学边界 ----------------
-        self.ACC_LIN_FWD    = 3.2    # m/s^2 (加速响应：充满推背感且轮胎不打滑)
-        self.ACC_LIN_BRAKE  = 4.5    # m/s^2 (制动减速：快速停稳但不会引发冲击俯冲)
-        self.ACC_STRAFE     = 2.5    # m/s^2 (侧移加速度：保护悬架外八字平稳撑开)
-        self.ACC_ANGULAR    = 6.0    # rad/s^2 (角加速度：Swerve 舵机能从容追踪 ICR)
+        # ---------------- 加减速度动力学边界 (按实车 MF9010 V2 17T 2.2 Nm 牵引上限校准) ----------------
+        self.ACC_LIN_FWD    = 2.6    # m/s^2 (4*2.2 Nm / (30 kg * 0.1 m) = 2.93 m/s^2 物理极限内)
+        self.ACC_LIN_BRAKE  = 2.8    # m/s^2 (制动减速：物理牵引上限内快速停稳)
+        self.ACC_STRAFE     = 2.2    # m/s^2 (侧移加速度：保护悬架外八字平稳撑开)
+        self.ACC_ANGULAR    = 12.0   # rad/s^2 (角加速度：支持 8.0 rad/s 小陀螺快速起停)
         
         # ---------------- 安全与过渡阈值 ----------------
         self.MAX_LATERAL_ACC = 3.0   # m/s^2 (过弯最大允许向心加速度上限 |vx * wz| <= 3.0)
@@ -147,11 +147,11 @@ class RoboMasterTeleopCommander:
             dt=dt
         )
 
-        # 角速度 wz 平滑更新
+        # 角速度 wz 平滑更新 (松手时更快回零，抑制转弯后残余甩尾)
         self.cmd_wz = self._slew_rate(
             self.cmd_wz, raw_wz, 
             accel_lim=self.ACC_ANGULAR, 
-            decel_lim=self.ACC_ANGULAR * 1.5, 
+            decel_lim=self.ACC_ANGULAR * 2.0, 
             dt=dt
         )
 
