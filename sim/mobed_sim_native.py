@@ -14,7 +14,7 @@ Key Advantages:
 - Real-time mouse orbit (left drag), pan (right drag), and zoom (scroll).
 
 Usage:
-    ./.venv/bin/python3 mobed_sim_native.py [--arena rmuc2027|rmul2027_3v3|3v3|playground|flat] [--climb normal|stair|off]
+    ./.venv/bin/python3 sim/mobed_sim_native.py [--arena rmuc2027|rmul2027_3v3|3v3|playground|flat] [--climb normal|stair|off]
 """
 
 import os
@@ -80,15 +80,16 @@ class ActuatorOutputs(ctypes.Structure):
 # -----------------------------------------------------------------------------
 # Arena & Joint Constants
 # -----------------------------------------------------------------------------
-PLAYGROUND_XML        = 'models_standard/playground/robot_playground.xml'
-RMUC2027_XML         = 'models_standard/RMUC2027_MuJoCo/robot_rmuc2027.xml'
-RMUC2027_PHYSICS_XML = 'models_standard/RMUC2027_MuJoCo/robot_rmuc2027_physics.xml'
+SIM_DIR              = os.path.dirname(os.path.abspath(__file__))
+PLAYGROUND_XML       = os.path.join(SIM_DIR, 'models_standard/playground/robot_playground.xml')
+RMUC2027_XML         = os.path.join(SIM_DIR, 'models_standard/RMUC2027_MuJoCo/robot_rmuc2027.xml')
+RMUC2027_PHYSICS_XML = os.path.join(SIM_DIR, 'models_standard/RMUC2027_MuJoCo/robot_rmuc2027_physics.xml')
 RMUC2027_LITE_XML    = RMUC2027_PHYSICS_XML
 RMUC2027_HD_XML      = RMUC2027_XML
-RMUL2027_3V3_XML     = 'models_standard/RMUL2027_3V3/robot_rmul_3v3.xml'
-ROBOX_V2_XML          = 'models_standard/robox_v2/robox_v2.xml'
-FLAT_XML              = ROBOX_V2_XML
-DYLIB_PATH            = 'build_native/libmobed_control.dylib'
+RMUL2027_3V3_XML     = os.path.join(SIM_DIR, 'models_standard/RMUL2027_3V3/robot_rmul_3v3.xml')
+ROBOX_V2_XML         = os.path.join(SIM_DIR, 'models_standard/robox_v2/robox_v2.xml')
+FLAT_XML             = ROBOX_V2_XML
+DYLIB_PATH           = os.path.join(SIM_DIR, 'build_native/libmobed_control.dylib')
 
 JOINT_NAMES = [
     'Steering_joint_LF', 'Steering_joint_RF', 'Steering_joint_LB', 'Steering_joint_RB',
@@ -133,7 +134,7 @@ class MujocoMITActuators:
         try:
             self.compute_torques = lib.mobed_mit_servo_torques
         except AttributeError as exc:
-            raise RuntimeError("Rebuild the native control library with scripts/build_native_dylib.sh for MIT control") from exc
+            raise RuntimeError("Rebuild the native control library with sim/scripts/build_native_dylib.sh for MIT control") from exc
         vector = np.ctypeslib.ndpointer(dtype=np.float64, shape=(8,), flags="C_CONTIGUOUS")
         self.compute_torques.argtypes = [vector] * 5
         self.compute_torques.restype = None
@@ -378,7 +379,7 @@ def main():
             print(f"==> Notice: Keyframe '{args.keyframe}' not found. Using default initial pose.")
     # 3. Load native C++ algorithm dylib
     if not os.path.exists(DYLIB_PATH):
-        raise FileNotFoundError(f"Native library {DYLIB_PATH} not found! Run scripts/build_native_dylib.sh first.")
+        raise FileNotFoundError(f"Native library {DYLIB_PATH} not found! Run sim/scripts/build_native_dylib.sh first.")
 
     print(f'==> Loading MobED C++ Control Core from {DYLIB_PATH} ...')
     lib = ctypes.CDLL(DYLIB_PATH)

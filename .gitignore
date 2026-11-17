@@ -76,11 +76,11 @@ log/
 # ==========================================
 # 原始模型与大型 CAD 源文件 (CAD / Sources)
 # ==========================================
-sources/*.stp
-sources/*.step
-sources/RMUC2026_V2.0.0.stp
+sim/sources/*.stp
+sim/sources/*.step
+sim/sources/RMUC2026_V2.0.0.stp
 source/
-!sources/仿真模型.stp
+!sim/sources/仿真模型.stp
 
 # ==========================================
 # ROS 2 工作空间与测试临时文件 (ROS 2 / Scratch)
@@ -96,6 +96,7 @@ track_cam_*.png
 # Native Build, Libraries & Local Symlinks
 # ==========================================
 build_native/
+sim/build_native/
 *.dylib
 install/
 local_mtgvakn0_9w389c_mjcf_stl
