@@ -52,7 +52,7 @@ python3 mobed_sim_native.py
 ```
 
 转向和偏心臂的 MIT 指令定义及仿真力矩计算在
-`mobed_ws/src/robot_control/include/robot_control/controllers/mit_servo.hpp`。
+`RoboX_ws/src/robot_control/include/robot_control/controllers/mit_servo.hpp`。
 更新后先运行 `./scripts/build_native_dylib.sh`。原生仿真每个物理步调用 C++ 计算力矩。
 
 接实车时，先把控制器的舵角和偏心臂目标角转换到各电机的输出轴坐标，校准方向和零位。
@@ -119,15 +119,8 @@ ROS 2 通过 `/mobed/spin`（`std_msgs/msg/Int8`）请求小陀螺。发送 `1` 
 如需通过 ROS 2 运行：
 
 ```bash
-cd mobed_ws
+cd RoboX_ws
 colcon build --symlink-install
 source install/setup.bash
 ros2 launch robot_bringup mobed_core.launch.py
-```
-
-或使用 Docker 容器环境：
-
-```bash
-docker build -t ros2-dev .
-./scripts/start-dev.sh
 ```

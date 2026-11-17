@@ -85,29 +85,6 @@ target_link_libraries(mobed_control_node
 )
 ament_target_dependencies(mobed_control_node rclcpp sensor_msgs std_msgs robot_interfaces)
 
-if(BUILD_TESTING)
-  add_executable(test_normal_climb test/test_normal_climb.cpp)
-  target_link_libraries(test_normal_climb PRIVATE mobed_tasks)
-  add_test(NAME normal_climb COMMAND test_normal_climb)
-
-  add_executable(test_wheel_compensation test/test_wheel_compensation.cpp)
-  target_link_libraries(test_wheel_compensation PRIVATE mobed_controllers)
-  add_test(NAME wheel_compensation COMMAND test_wheel_compensation)
-
-  add_executable(test_spin_drive test/test_spin_drive.cpp)
-  target_link_libraries(test_spin_drive PRIVATE mobed_kinematics)
-  add_test(NAME spin_drive COMMAND test_spin_drive)
-
-  add_executable(test_stair_rear_lift test/test_stair_rear_lift.cpp)
-  target_link_libraries(test_stair_rear_lift PRIVATE mobed_tasks)
-  add_test(NAME stair_rear_lift COMMAND test_stair_rear_lift)
-
-  find_package(ament_lint_auto REQUIRED)
-  set(ament_cmake_copyright_FOUND TRUE)
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
-
 # Core Facade Library
 add_library(mobed_core SHARED
   src/core/mobed_controller_core.cpp

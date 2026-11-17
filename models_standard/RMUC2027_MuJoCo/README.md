@@ -16,17 +16,14 @@
 | `rover_test.xml` | 带通用四轮测试车的演示；不是你的实际机器人 |
 | `launch_robox.sh` / `.cmd` | 启动 ROBOX V2 完整仿真交互控制（macOS / Linux / Windows） |
 | `launch_scene.sh` / `.cmd` | 查看 RMUC 2027 场地 |
-| `launch_rover.sh` / `.cmd` | 演示测试车通过公路起伏 |
-| `run_tests.cmd` | Windows 双击重新运行接触、路线及速度测试 |
-| `测试报告.md` | 本机测试结果、条件及边界问题说明 |
 
 请保留整个文件夹的相对结构；场景需要 `field.xml` 和 `assets/visual/`，单独复制入口 XML 不够。无需原始 653 MB STEP 或 CAD 软件。
 
 ## 在当前电脑查看
 
-直接双击 `launch_scene.cmd` 或 `launch_rover.cmd`。启动文件会优先使用本场景的 `.venv`，其次使用这次转换所建的本地 Python 环境，再尝试系统 Python。
+Windows 可双击 `launch_scene.cmd`。macOS 或 Linux 可运行 `./launch_scene.sh`。启动文件会优先使用场景目录或仓库根目录的 `.venv`，其次尝试系统 Python。
 
-查看器左键拖动旋转，右键拖动平移，滚轮缩放；空格暂停／继续，R 重置。测试车视角会跟随车体。关闭窗口即可退出。
+查看器左键拖动旋转，右键拖动平移，滚轮缩放；空格暂停／继续，R 重置。关闭窗口即可退出。
 
 ## 换一台电脑
 
@@ -38,20 +35,15 @@ python -m venv .venv
 .venv\Scripts\python.exe view_scene.py
 ```
 
-Linux 下使用 `.venv/bin/python`。无窗口的接触和路线测试不需要渲染；查看器和 `--render` 需要可用的图形环境。
+Linux 下使用 `.venv/bin/python`。图形查看器需要可用的图形环境。
 
 ```powershell
-# 以纯碰撞方式显示测试车通过中央通道
-python view_scene.py --route central_passage --physics
+# 查看纯碰撞场地
+python view_scene.py --physics
 
-# 完整复测并导出实际 MuJoCo 图片
-python validate_scene.py --render
-
-# 无窗口地运行一条演示路线
-python view_scene.py --route road_red --physics --headless --duration 15
+# 无窗口加载 ROBOX V2 场景并推进物理仿真
+python view_scene.py --robox --headless --duration 1
 ```
-
-请在已安装依赖的 Python 环境下执行。路线名称可选 `flat`、`central_passage`、`ramp_red`、`ramp_blue`、`road_red`、`road_blue`。测试结果写入 `test_results.json`，轨迹写入 `test_trajectories.json`；复测会更新这两个文件。
 
 ## 接入自己的机器人
 
@@ -82,13 +74,7 @@ python view_scene.py --route road_red --physics --headless --duration 15
 - 对原 STEP 的世界坐标：先把毫米换成米，再平移 `[0, -1.6243436765, 1.8509]` m；各实例装配姿态已包含在几何中。
 - 默认步长 2 ms、`implicitfast`、Newton。场地摩擦 `0.9 0.005 0.0001`，`solref=0.006 1`。摩擦为可调假定，未测定实物材料；真实机器人的轮胎和控制器需要单独调试。
 
-## 测试边界
-
-测试使用 20 kg 通用四轮车、半径 0.10 m 的车轮、无悬挂。六条路线和高台阶阻挡测试不等于实际参赛机器人的整场可通行性；本车把较高台阶作为障碍物，不承诺能够攀爬。
-
-台阶精确拼缝处存在微米以下的浮点坐标偏移，零宽度射线可能命中邻阶或下方地面。两侧内部采样及有限半径接触已另行核对，原始射线差异保留在 `export_validation.json`。若用射线建立高度图，应避开恰好落在竖直接缝上的单点，或取微小邻域的多点结果。
-
-运行速度数据只表示本机单 CPU、单辆测试车、无渲染的物理步进速度，包含完整 1,365 个碰撞体；不代表 GPU 并行训练吞吐，也没有与原始 STEP 场景进行速度对比。
+- 用射线建立高度图时，避开恰好落在台阶竖直接缝上的单点，或在微小邻域内取多个样点。
 
 ## 来源
 

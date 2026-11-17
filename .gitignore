@@ -85,9 +85,9 @@ source/
 # ==========================================
 # ROS 2 工作空间与测试临时文件 (ROS 2 / Scratch)
 # ==========================================
-mobed_ws/build/
-mobed_ws/install/
-mobed_ws/log/
+RoboX_ws/build/
+RoboX_ws/install/
+RoboX_ws/log/
 scratch/
 *_rendered.png
 track_cam_*.png
