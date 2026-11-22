@@ -19,6 +19,11 @@ def generate_launch_description():
         default_value='false',
         description='Whether to also start EcatV2_Master soem_backend (requires root / RT privileges)',
     )
+    launch_hub_arg = DeclareLaunchArgument(
+        'launch_hub',
+        default_value='true',
+        description='Whether to start robox_hub_controller (SBUS teleop & command routing)',
+    )
     ecat_interface_arg = DeclareLaunchArgument(
         'ecat_interface',
         default_value='enp2s0',
@@ -42,6 +47,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         launch_ecat_arg,
+        launch_hub_arg,
         ecat_interface_arg,
         ecat_config_arg,
         rt_cpu_arg,
@@ -63,13 +69,24 @@ def generate_launch_description():
             }],
         ),
 
-        # 核心控制节点 (直连 EcatV2_Master 12 个实车电机 + HiPNUC CH010 IMU + SBUS RC)
+        # 上层 Hub 控制器 (SBUS 遥控器解析 + 速度平滑 -> RoboxChassisControl)
         Node(
-            package='robot_control',
-            executable='mobed_control_node',
-            name='mobed_control_node',
+            package='hub_controller',
+            executable='robox_hub_controller',
+            name='robox_hub_controller',
             output='screen',
-            emulate_tty=True,  # 保证日志颜色输出
+            emulate_tty=True,
+            condition=IfCondition(LaunchConfiguration('launch_hub')),
+            parameters=[hardware_config],
+        ),
+
+        # 底层底盘控制节点 (直连 EcatV2_Master 12 个实车电机 + HiPNUC CH010 IMU)
+        Node(
+            package='chassis_controllers',
+            executable='dm_lk_robox_chassis_controller',
+            name='dm_lk_robox_chassis_controller',
+            output='screen',
+            emulate_tty=True,
             parameters=[hardware_config],
         ),
     ])

@@ -4,7 +4,10 @@
 
 ## 📁 仓库结构
 
-- `RoboX_ws/`：真车 ROS 2 工作空间（仅包含实车控制节点、算法库、接口定义与启动配置）
+- `RoboX_ws/`：真车 ROS 2 工作空间：
+  - `src/chassis_controllers/`：底层轮腿全向底盘控制器（与 `universal_controllers_v2` 的 `chassis_controllers` 保持结构与代码一致，包含 `dm_lk_robox_chassis_controller`、`RoboxSolver` 与 `RoboxChassisControl.msg`）
+  - `src/hub_controller/`：上层 Hub 控制器（`robox_hub_controller`，负责 SBUS 遥控器解码、速度平滑与外部指令路由）
+  - `src/robot_bringup/`：实车启动配置（参数 YAML 与 `mobed_core.launch.py`）
 - `sim/`：仿真环境（MuJoCo 仿真脚本、机器人/场地模型、CAD 源文件、原生动态库桥接与编译脚本）
 
 ---
@@ -59,7 +62,7 @@ python3 sim/mobed_sim_native.py
 ```
 
 转向和偏心臂的 MIT 指令定义及仿真力矩计算在
-`RoboX_ws/src/robot_control/include/robot_control/controllers/mit_servo.hpp`。
+`RoboX_ws/src/chassis_controllers/include/chassis_controllers/utils/robox/controllers/mit_servo.hpp`。
 更新后先运行 `./sim/scripts/build_native_dylib.sh`。原生仿真每个物理步通过 `sim/native_core/` 调用 C++ 计算力矩。
 
 接实车时，先把控制器的舵角和偏心臂目标角转换到各电机的输出轴坐标，校准方向和零位。
@@ -117,13 +120,13 @@ python3 sim/mobed_sim_native.py
 
 小陀螺适用于 ROBOX V2 的平坦场地。进入后先对舵，再逐步升至目标角速度 1.8 rad/s。松开方向键后继续自转。再次按模式键、按 `Space` / `X` 或窗口失焦会减速退出。切换旋转方向时，先退出并停稳，再按另一方向的模式键。
 
-ROS 2 通过 `/mobed/spin`（`std_msgs/msg/Int8`）请求小陀螺。发送 `1` 为逆时针、`-1` 为顺时针、`0` 为退出。启用期间持续发送模式请求和 `/mobed/command`，两者的超时均为 0.5 秒。此时命令的线速度相对于进入模式时的车头方向。零线速度请求表示原地持续自转。
+ROS 2 通过 `chassis_controllers/msg/RoboxChassisControl`（经 `hub_controller` 的 `external_robox_command` 或直接发往 `robox_chassis_command`）请求小陀螺与运动控制：将 `spin_mode` 设为 `1`（逆时针）、`-1`（顺时针）或 `0`（退出），配合 `x_speed`、`y_speed`、`yaw_speed` 连续发布，两者的控制超时均为 0.5 秒。此时命令的线速度相对于进入模式时的车头方向。零线速度请求表示原地持续自转。
 
 ---
 
 ### 3. 实车 ROS 2 运行方式
 
-`robot_control` 依赖 `EcatV2_Master` 中的 `custom_msgs`。在实车工控机（Ubuntu + ROS 2）上先编译并加载 `EcatV2_Master`，再编译并启动 `RoboX_ws`：
+`chassis_controllers` 与 `hub_controller` 依赖 `EcatV2_Master` 中的 `custom_msgs`。在实车工控机（Ubuntu + ROS 2）上先编译并加载 `EcatV2_Master`，再编译并启动 `RoboX_ws`：
 
 ```bash
 # 1. 编译 EcatV2_Master（提供 custom_msgs 与 EtherCAT 主站节点）
@@ -131,7 +134,7 @@ cd EcatV2_Master
 colcon build --symlink-install
 source install/setup.bash
 
-# 2. 编译并启动 RoboX_ws（12 电机参数与话题映射见 RoboX_ws/src/robot_bringup/config/mobed_hardware.yaml）
+# 2. 编译并启动 RoboX_ws（12 电机、Hub 与 SBUS 参数见 RoboX_ws/src/robot_bringup/config/mobed_hardware.yaml）
 cd ../RoboX_ws
 colcon build --symlink-install
 source install/setup.bash

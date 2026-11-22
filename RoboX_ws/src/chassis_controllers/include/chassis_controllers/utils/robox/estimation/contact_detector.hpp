@@ -1,0 +1,206 @@
+#pragma once
+
+#include <Eigen/Dense>
+#include <array>
+#include <deque>
+#include "chassis_controllers/utils/robox/core/mobed_types.hpp"
+#include "chassis_controllers/utils/robox/core/robot_params.hpp"
+#include "chassis_controllers/utils/robox/estimation/climb_geometry_estimator.hpp"
+
+namespace robot_control {
+namespace estimation {
+
+/**
+ * @brief Contact and impact detector using joint torque and climbing geometry feedback.
+ */
+class ContactDetector {
+public:
+    explicit ContactDetector(const RobotParams& params = RobotParams());
+    virtual ~ContactDetector() = default;
+
+    /**
+     * @brief Feed new joint effort data, IMU acceleration, and geometric state to update detection.
+     */
+    void update(const Eigen::Vector4d& ecc_efforts,
+                const Eigen::Vector4d& wheel_efforts,
+                const Eigen::Vector4d& wheel_velocities,
+                double chassis_forward_vel,
+                double cmd_forward_vel,
+                double imu_accel_x,
+                const ClimbGeometry& geometry,
+                double dt,
+                double cmd_lateral_vel = 0.0,
+                double cmd_yaw_rate = 0.0,
+                double imu_gyro_y = 0.0);
+
+    void update(const Eigen::Vector4d& ecc_efforts,
+                const Eigen::Vector4d& wheel_efforts,
+                const Eigen::Vector4d& wheel_velocities,
+                double chassis_forward_vel,
+                double cmd_forward_vel,
+                const ClimbGeometry& geometry,
+                double dt) {
+        update(ecc_efforts, wheel_efforts, wheel_velocities, chassis_forward_vel, cmd_forward_vel, 0.0, geometry, dt);
+    }
+
+    void update(const Eigen::Vector4d& ecc_efforts,
+                const Eigen::Vector4d& wheel_efforts,
+                const Eigen::Vector4d& wheel_velocities,
+                double chassis_forward_vel,
+                double cmd_forward_vel,
+                double dt) {
+        ClimbGeometry dummy;
+        update(ecc_efforts, wheel_efforts, wheel_velocities, chassis_forward_vel, cmd_forward_vel, dummy, dt);
+    }
+
+    void update(const Eigen::Vector4d& ecc_efforts,
+                const Eigen::Vector4d& wheel_efforts,
+                const Eigen::Vector4d& wheel_velocities,
+                double dt) {
+        ClimbGeometry dummy;
+        update(ecc_efforts, wheel_efforts, wheel_velocities, 0.0, 0.2, dummy, dt);
+    }
+
+    /**
+     * @brief Check if an impact was detected on any front leg.
+     * @return true if FL or FR detected a collision this cycle
+     */
+    virtual bool frontImpactDetected() const;
+
+    /**
+     * @brief Check if an impact was detected on any rear leg.
+     * @return true if RL or RR detected a collision this cycle
+     */
+    virtual bool rearImpactDetected() const;
+
+    /**
+     * @brief Check if an impact was detected on a specific leg.
+     * @param leg_idx Leg index [FL=0, FR=1, RL=2, RR=3]
+     * @return true if specified leg detected collision this cycle
+     */
+    virtual bool isLegImpacted(int leg_idx) const {
+        return (leg_idx >= 0 && leg_idx < NUM_LEGS) ? impact_flags_[leg_idx] : false;
+    }
+
+    /**
+     * @brief Get decoupled per-wheel external obstacle torque vector (Nm).
+     */
+    Eigen::Vector4d getWheelExtTorques() const { return wheel_ext_torques_; }
+
+    /**
+     * @brief Get per-leg impact detection flags.
+     * @return Array of 4 booleans [FL, FR, RL, RR]
+     */
+    virtual std::array<bool, NUM_LEGS> getImpactFlags() const { return impact_flags_; }
+
+    /**
+     * @brief Get the smoothed torque rate (dτ/dt) for each eccentric joint.
+     * @return Eigen::Vector4d torque rates [FL, FR, RL, RR] (Nm/s)
+     */
+    Eigen::Vector4d getEccTorqueRates() const { return ecc_torque_rates_; }
+
+    /**
+     * @brief Get the integrated obstacle contact evidence score [0.0, 1.0].
+     */
+    double getFrontEvidenceScore() const { return front_evidence_score_; }
+
+    /**
+     * @brief Get the generalized momentum observer residual r(t) (N).
+     * Strong negative values indicate sudden physical arrest of chassis momentum.
+     */
+    double getMomentumResidual() const { return momentum_residual_; }
+
+    /**
+     * @brief Get the eccentric reaction torque jump (Nm).
+     */
+    Eigen::Vector4d getDeltaTauEcc() const { return delta_tau_ecc_; }
+
+    /**
+     * @brief Scheme 1: Get chassis pitch angular acceleration (rad/s^2).
+     */
+    double getPitchAccel() const { return pitch_accel_; }
+
+    /**
+     * @brief Scheme 1: Get longitudinal acceleration jerk (m/s^3).
+     */
+    double getAccelJerkX() const { return accel_jerk_x_; }
+
+    /**
+     * @brief Reset all detection state and history buffers.
+     */
+    void reset();
+
+private:
+    RobotParams params_;
+
+    // Per-leg impact detection flags (true for one cycle after detection)
+    std::array<bool, NUM_LEGS> impact_flags_;
+
+    // Smoothed torque rates
+    Eigen::Vector4d ecc_torque_rates_;
+    Eigen::Vector4d wheel_torque_rates_;
+
+    // Evidence integrator for front axle obstacle contact
+    double front_evidence_score_ = 0.0;
+    double front_evidence_sustain_timer_ = 0.0;
+    double prev_cmd_vel_ = 0.0;
+
+    // Single-Wheel Generalized Momentum Observer (GMO) & Per-Leg Impact State
+    Eigen::Vector4d wheel_ext_torques_ = Eigen::Vector4d::Zero();
+    Eigen::Vector4d prev_wheel_velocities_ = Eigen::Vector4d::Zero();
+    std::array<int, NUM_LEGS> leg_impact_cycles_ = {0, 0, 0, 0};
+    static constexpr double WHEEL_INERTIA_J = 0.0038; // kg*m^2 (wheel + tire rotational inertia)
+    static constexpr int REQUIRED_CONFIRM_CYCLES = 4; // 4 cycles (8ms at 500Hz)
+
+    // Consistency Gate Thresholds and Filters
+    double imu_decel_shock_threshold_ = -0.70;  // m/s^2, longitudinal impact shock
+    double wheel_stall_vel_max_       = 0.8;    // rad/s, maximum wheel speed during true stall
+    double wheel_stall_torque_min_    = 2.2;    // N·m, minimum reaction torque during stall (scaled with command)
+    int    impact_confirm_cycles_     = 0;      // Consecutive confirmation cycles
+
+    // Generalized Momentum Observer & Fast Reaction Jump for rear wall collision
+    double momentum_residual_ = 0.0;
+    double momentum_observer_z_ = 0.0;
+    int    rear_impact_confirm_cycles_ = 0;
+    static constexpr int REQUIRED_REAR_CONFIRM_CYCLES = 4; // 4 cycles (8ms at 500Hz)
+    Eigen::Vector4d delta_tau_ecc_ = Eigen::Vector4d::Zero();
+    Eigen::Vector4d ecc_effort_baseline_ = Eigen::Vector4d::Zero();
+
+    // Two-stage detection timers per leg
+    std::array<double, NUM_LEGS> shock_window_timer_;
+    std::array<double, NUM_LEGS> sustain_timer_;
+    double startup_timer_ = 0.0;
+
+    // Scheme 1: Kinematic IMU shock & jerk derivatives
+    double prev_imu_gyro_y_ = 0.0;
+    double prev_imu_accel_x_ = 0.0;
+    double prev_chassis_vel_ = 0.0;
+    double pitch_accel_ = 0.0;
+    double accel_jerk_x_ = 0.0;
+
+    // Sliding window history for torque derivative computation
+    static constexpr int WINDOW_SIZE = 5;
+    std::array<std::deque<double>, NUM_LEGS> ecc_effort_history_;
+    std::array<std::deque<double>, NUM_LEGS> wheel_effort_history_;
+
+    // Previous effort values for finite difference
+    Eigen::Vector4d prev_ecc_efforts_;
+    Eigen::Vector4d prev_wheel_efforts_;
+    bool initialized_ = false;
+
+    /**
+     * @brief Compute smoothed derivative using sliding window average.
+     *
+     * Uses a finite difference over the window to reduce noise sensitivity
+     * while preserving fast transient response.
+     *
+     * @param history  Reference to the sliding window deque
+     * @param new_val  New measurement value
+     * @param dt       Time step
+     * @return Smoothed derivative (units/s)
+     */
+    double computeSmoothedRate(std::deque<double>& history, double new_val, double dt) const;
+};
+
+}  // namespace estimation
+}  // namespace robot_control
