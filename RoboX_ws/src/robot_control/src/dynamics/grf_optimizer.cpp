@@ -13,7 +13,8 @@ GrfOptimizer::GrfOptimizer(const RobotParams& params)
 Eigen::Vector4d GrfOptimizer::computeOptimalGRF(
     const SrbdModel& srbd,
     const Eigen::Vector3d& desired_linear_accel,
-    const Eigen::Vector3d& desired_angular_accel)
+    const Eigen::Vector3d& desired_angular_accel,
+    const Eigen::Vector4d& force_limits)
 {
     Eigen::Vector4d grf_result = Eigen::Vector4d::Zero();
 
@@ -21,6 +22,7 @@ Eigen::Vector4d GrfOptimizer::computeOptimalGRF(
     int n_contact = static_cast<int>(contact_indices.size());
 
     if (n_contact == 0) {
+        prev_grf_result_.setZero();
         return grf_result;  // all legs airborne — no GRF possible
     }
 
@@ -60,7 +62,10 @@ Eigen::Vector4d GrfOptimizer::computeOptimalGRF(
     qp.H  = H;
     qp.f  = f_cost;
     qp.lb = Eigen::VectorXd::Zero(n_contact);                           // f_z >= 0 (no pull)
-    qp.ub = Eigen::VectorXd::Constant(n_contact, max_grf_per_leg);      // f_z <= f_max
+    qp.ub.resize(n_contact);
+    for (int j = 0; j < n_contact; ++j) {
+        qp.ub(j) = std::min(max_grf_per_leg, force_limits(contact_indices[j]));
+    }
     
     // Dynamics are now soft constraints in the cost function
     qp.A_eq = Eigen::MatrixXd(0, n_contact);
@@ -80,8 +85,8 @@ Eigen::Vector4d GrfOptimizer::computeOptimalGRF(
     } else {
         // Fallback: equal weight distribution if QP fails
         double f_fallback = params_.total_mass * params_.gravity / n_contact;
-        for (int leg_idx : contact_indices) {
-            grf_result(leg_idx) = f_fallback;
+        for (int j = 0; j < n_contact; ++j) {
+            grf_result(contact_indices[j]) = std::min(f_fallback, qp.ub(j));
         }
     }
 
@@ -123,7 +128,7 @@ Eigen::Vector4d GrfOptimizer::grfToEccTorque(
 {
     // ================================================================
     // Map vertical GRF to eccentric joint torque via Jacobian transpose:
-    //   tau_ecc,i = J_z,i^T * f_z,i
+    //   tau_motor,i = -J_z,i^T * f_z,i
     //
     // The sign convention: a positive f_z (upward ground push) requires
     // the eccentric joint to exert a torque that resists downward motion.
@@ -137,8 +142,8 @@ Eigen::Vector4d GrfOptimizer::grfToEccTorque(
         double J_z = computeVerticalJacobian(
             i, ecc_angles(i), steer_angles(i), target_roll, target_pitch);
 
-        // tau = J^T * f  (scalar for single-DOF eccentric)
-        tau_ecc(i) = J_z * grf(i);
+        // J^T f acts on the mechanism; the support motor opposes it.
+        tau_ecc(i) = -J_z * grf(i);
     }
 
     return tau_ecc;

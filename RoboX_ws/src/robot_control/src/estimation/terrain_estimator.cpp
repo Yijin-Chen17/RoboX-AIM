@@ -21,13 +21,14 @@ void TerrainEstimator::reset() {
     terrain_state_.is_valid = false;
     gravity_normal_prev_ = Eigen::Vector3d(0.0, 0.0, 1.0);
     in_non_planar_zone_ = false;
+    insufficient_support_time_ = 0.0;
 }
 
 void TerrainEstimator::update(
     const std::array<Eigen::Vector3d, NUM_LEGS>& foot_pos_in_base,
     const Eigen::Matrix3d& R_base,
     const std::array<bool, NUM_LEGS>& contact_valid,
-    bool is_stopped)
+    bool is_stopped, double dt)
 {
     // Collect valid contact points transformed into gravity-aligned frame:
     // p_{i,G} = R_base * ^B r_i (relative to chassis center, free of base_pos drift)
@@ -42,9 +43,17 @@ void TerrainEstimator::update(
 
     // Need at least 3 points to define a plane
     if (valid_points.size() < 3) {
-        // Not enough contact points — keep the previous estimate
+        // Ride through short unloads, then release a stale slope estimate.
+        insufficient_support_time_ += dt;
+        if (terrain_state_.is_valid && insufficient_support_time_ > 0.15) {
+            const double alpha = dt / (0.35 + dt);
+            gravity_normal_prev_ = ((1.0 - alpha) * gravity_normal_prev_ +
+                                   alpha * Eigen::Vector3d::UnitZ()).normalized();
+            updateTerrainState(gravity_normal_prev_, R_base, is_stopped);
+        }
         return;
     }
+    insufficient_support_time_ = 0.0;
 
     // Fit plane normal via least-squares pseudo-inverse in gravity-aligned frame
     Eigen::Vector3d raw_normal = fitPlaneNormal(valid_points);
@@ -133,7 +142,11 @@ void TerrainEstimator::update(
         normal_gravity = (filter_alpha_ * raw_normal + (1.0 - filter_alpha_) * gravity_normal_prev_).normalized();
     }
     gravity_normal_prev_ = normal_gravity;
+    updateTerrainState(normal_gravity, R_base, is_stopped);
+}
 
+void TerrainEstimator::updateTerrainState(Eigen::Vector3d normal_gravity,
+                                         const Eigen::Matrix3d& R_base, bool is_stopped) {
     // Compute overall slope angle: angle between terrain normal and world Z
     Eigen::Vector3d world_up(0.0, 0.0, 1.0);
     double cos_angle = std::clamp(normal_gravity.dot(world_up), -1.0, 1.0);

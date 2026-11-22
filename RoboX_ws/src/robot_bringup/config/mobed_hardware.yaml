@@ -1,0 +1,134 @@
+mobed_control_node:
+  ros__parameters:
+    robot_model: "robox_v2"
+
+    # ==========================================================================
+    # 安全总开关与看门狗
+    # 首次实车架空标定零位与方向时，先保持 enable_motors: false（只读反馈不输出）
+    # 确认 12 个电机零位、正反方向与 IMU 均无误后，再改为 true
+    # ==========================================================================
+    enable_motors: false
+    use_ecc_torque_ff: true
+    motor_watchdog_timeout: 0.25   # s，任一电机超时未反馈则自动发 enable=0 卸力
+
+    # ==========================================================================
+    # 极性与零位偏置（顺序固定为: [LF, RF, LB, RB]）
+    # 实车安装方向或编码器零点与数学坐标系不同时，在此调整正负号与偏置(rad)
+    # ==========================================================================
+    steer_signs:   [1.0, 1.0, 1.0, 1.0]
+    steer_offsets: [0.0, 0.0, 0.0, 0.0]
+
+    ecc_signs:     [1.0, -1.0, 1.0, -1.0]
+    ecc_offsets:   [3.141592653589793, 3.141592653589793, 3.141592653589793, 3.141592653589793]
+
+    wheel_signs:   [-1.0, 1.0, -1.0, 1.0]
+
+    # ==========================================================================
+    # 达妙 DM-J4310P-2EC (转向) / DM-J4340P-2EC V1.1 (偏心) MIT 参数
+    # 注意：实车首次带电调试建议先从较小 Kp (如 20~50) 起步，确认无振荡后再逐步调大
+    # ==========================================================================
+    dm_steer_kp: 360.0
+    dm_steer_kd: 5.0
+    dm_steer_pmax: 3.141592653589793   # 需与 DMTools 上位机 PMax 一致（推荐设为 PI）
+
+    dm_ecc_kp: 125.0
+    dm_ecc_kd: 4.8
+    dm_ecc_pmax: 3.141592653589793     # 需与 DMTools 上位机 PMax 一致（推荐设为 PI）
+
+    # ==========================================================================
+    # 瓴控 LK MF9010 V2 (17T, 24V) 轮毂电机参数
+    # ==========================================================================
+    wheel_kt: 0.16                     # Nm/A (17T 官方转矩常数)
+    wheel_max_torque_nm: 2.2           # Nm (17T 最大转矩)
+    wheel_mf_max_current_a: 16.5       # A (EcatV2_Master MF 系列 2048 对应的满量程电流)
+
+    # ==========================================================================
+    # EcatV2_Master 12 个电机 ROS 2 话题映射（顺序: [LF, RF, LB, RB]）
+    # 需与 EcatV2_Master/src/soem_wrapper/config/config.yaml 中的 pub_topic / sub_topic 一致
+    # ==========================================================================
+    steer_state_topics:
+      - "/ecat/steer_lf/state"
+      - "/ecat/steer_rf/state"
+      - "/ecat/steer_lb/state"
+      - "/ecat/steer_rb/state"
+    steer_cmd_topics:
+      - "/ecat/steer_lf/cmd"
+      - "/ecat/steer_rf/cmd"
+      - "/ecat/steer_lb/cmd"
+      - "/ecat/steer_rb/cmd"
+
+    ecc_state_topics:
+      - "/ecat/ecc_lf/state"
+      - "/ecat/ecc_rf/state"
+      - "/ecat/ecc_lb/state"
+      - "/ecat/ecc_rb/state"
+    ecc_cmd_topics:
+      - "/ecat/ecc_lf/cmd"
+      - "/ecat/ecc_rf/cmd"
+      - "/ecat/ecc_lb/cmd"
+      - "/ecat/ecc_rb/cmd"
+
+    wheel_state_topics:
+      - "/ecat/wheel_lf/state"
+      - "/ecat/wheel_rf/state"
+      - "/ecat/wheel_lb/state"
+      - "/ecat/wheel_rb/state"
+    wheel_cmd_topics:
+      - "/ecat/wheel_lf/cmd"
+      - "/ecat/wheel_rf/cmd"
+      - "/ecat/wheel_lb/cmd"
+      - "/ecat/wheel_rb/cmd"
+
+    # ==========================================================================
+    # HiPNUC CH010 IMU (G431 CAN 转发板, app_id=3)
+    # 车体坐标系为 FLU (+X前 / +Y左 / +Z上)
+    # 若 CH010 壳体丝印 +X 朝车头正前方、+Z 朝上，imu_mount_rpy_deg 保持 [0, 0, 0]
+    # ==========================================================================
+    imu_topic: "/imu"
+    require_imu_for_homing: true
+    imu_mount_rpy_deg: [0.0, 0.0, 0.0] # [roll, pitch, yaw] deg (IMU系 -> 车体FLU系)
+    imu_lever_arm: [0.0, 0.0, 0.0]     # [dx, dy, dz] m (IMU 相对底盘中心偏移)
+
+    # ==========================================================================
+    # SBUS 遥控器 (EcatV2_Master SBUS_RC, app_id=11) 与速度平滑参数
+    # 通道索引从 0 开始 (Ch1=0, Ch2=1 ...)，设为 -1 可禁用该通道映射
+    # ==========================================================================
+    sbus_enabled: true
+    sbus_topic: "/ecat/sbus_rc"
+    sbus_failsafe_estop: true
+    sbus_timeout: 0.5
+    sbus_ch_min: 172.0                 # 标准 SBUS 最小/中位/最大值 (如为 1000/1500/2000 相应调整)
+    sbus_ch_mid: 992.0
+    sbus_ch_max: 1811.0
+    sbus_deadband: 0.05
+
+    sbus_ch_vx: 1                      # 前后 (Ch2)
+    sbus_ch_vy: 0                      # 左右横移 (Ch1)
+    sbus_ch_wz: 3                      # 转向角速度 (Ch4)
+    sbus_ch_height: 2                  # 机身高度调节 (Ch3; 若固定高度可设 -1)
+    sbus_ch_estop: 4                   # 急停拨杆 (Ch5; > 0.5 触发急停)
+    sbus_ch_climb_mode: 5              # 攀爬模式三段开关 (Ch6: 低=关, 中=常规, 高=200mm)
+    sbus_ch_spin: 6                    # 小陀螺三段开关 (Ch7: 低=顺时针, 中=关, 高=逆时针)
+    sbus_ch_posture: 7                 # 姿态模式三段开关 (Ch8: 低=OUTWARD, 中=INWARD, 高=STRAFE)
+
+    sbus_inv_vx: false
+    sbus_inv_vy: false
+    sbus_inv_wz: false
+    sbus_inv_height: false
+    sbus_inv_estop: false
+    sbus_height_min: 0.084
+    sbus_height_max: 0.22
+
+    teleop_max_vx: 1.2                 # m/s
+    teleop_max_vy: 1.0                 # m/s
+    teleop_max_wz: 2.0                 # rad/s
+    teleop_accel_lin_fwd: 2.6          # m/s^2
+    teleop_accel_lin_brake: 2.8        # m/s^2
+    teleop_accel_strafe: 2.2           # m/s^2
+    teleop_accel_angular: 12.0         # rad/s^2
+    teleop_max_lateral_acc: 3.0        # m/s^2 (过弯离心保护 |vx * wz| <= 3.0)
+
+    # 业务默认参数
+    payload_mass: 0.0
+    posture_configuration: 0
+    target_curb_height: 0.075

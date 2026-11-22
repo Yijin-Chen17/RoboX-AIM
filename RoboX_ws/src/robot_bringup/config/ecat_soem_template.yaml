@@ -1,0 +1,35 @@
+# ==============================================================================
+# EcatV2_Master (soem_wrapper) 从站配置参考模板
+# ==============================================================================
+# 说明：
+# 1. 请先在实车上用 EcatV2_Master/tools/slaveinfo 查出每块 H750 从站板卡的 SN 号，
+#    并用官方网页工具 https://aimethercat.github.io/TaskEditor 生成正式的 config.yaml
+#    （因为每个 H750 从站 PDO 字节上限为 80B，且单路 CAN 建议 <= 3 个 1kHz 电机，
+#     实车 12 个电机 + 1 IMU + 1 SBUS 通常会分布在多块 H750 从站 / 多路 CAN 上）。
+# 2. 在 TaskEditor 中配置各任务时，只需把下面对应的话题名填进去，即可与
+#    RoboX_ws/src/robot_bringup/config/mobed_hardware.yaml 无缝对接：
+#
+#   [传感器与遥控]
+#   - HIPNUC IMU (CAN) [app_id=3]  pub_topic: "/imu"
+#   - SBUS RC          [app_id=11] pub_topic: "/ecat/sbus_rc"
+#
+#   [4x 转向电机 DM-J4310P-2EC, MIT 模式, app_id=12]
+#   - LF: pub_topic: "/ecat/steer_lf/state"  sub_topic: "/ecat/steer_lf/cmd"
+#   - RF: pub_topic: "/ecat/steer_rf/state"  sub_topic: "/ecat/steer_rf/cmd"
+#   - LB: pub_topic: "/ecat/steer_lb/state"  sub_topic: "/ecat/steer_lb/cmd"
+#   - RB: pub_topic: "/ecat/steer_rb/state"  sub_topic: "/ecat/steer_rb/cmd"
+#     (DMTools 与 TaskEditor 中建议 PMax=3.14159265, VMax=30.0, TMax=12.5, control_type=MIT)
+#
+#   [4x 偏心电机 DM-J4340P-2EC V1.1, MIT 模式, app_id=12]
+#   - LF: pub_topic: "/ecat/ecc_lf/state"    sub_topic: "/ecat/ecc_lf/cmd"
+#   - RF: pub_topic: "/ecat/ecc_rf/state"    sub_topic: "/ecat/ecc_rf/cmd"
+#   - LB: pub_topic: "/ecat/ecc_lb/state"    sub_topic: "/ecat/ecc_lb/cmd"
+#   - RB: pub_topic: "/ecat/ecc_rb/state"    sub_topic: "/ecat/ecc_rb/cmd"
+#     (DMTools 与 TaskEditor 中建议 PMax=3.14159265, VMax=10.0, TMax=40.0, control_type=MIT)
+#
+#   [4x 驱动轮电机 LK MF9010 V2 17T, Speed With Torque Limit 模式, app_id=2]
+#   - LF: pub_topic: "/ecat/wheel_lf/state"  sub_topic: "/ecat/wheel_lf/cmd"
+#   - RF: pub_topic: "/ecat/wheel_rf/state"  sub_topic: "/ecat/wheel_rf/cmd"
+#   - LB: pub_topic: "/ecat/wheel_lb/state"  sub_topic: "/ecat/wheel_lb/cmd"
+#   - RB: pub_topic: "/ecat/wheel_rb/state"  sub_topic: "/ecat/wheel_rb/cmd"
+# ==============================================================================

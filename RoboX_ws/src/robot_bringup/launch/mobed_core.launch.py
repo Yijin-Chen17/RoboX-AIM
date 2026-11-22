@@ -1,30 +1,75 @@
 import os
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
+
 def generate_launch_description():
+    hardware_config = os.path.join(
+        get_package_share_directory('robot_bringup'),
+        'config',
+        'mobed_hardware.yaml',
+    )
+
+    launch_ecat_arg = DeclareLaunchArgument(
+        'launch_ecat',
+        default_value='false',
+        description='Whether to also start EcatV2_Master soem_backend (requires root / RT privileges)',
+    )
+    ecat_interface_arg = DeclareLaunchArgument(
+        'ecat_interface',
+        default_value='enp2s0',
+        description='EtherCAT NIC name for soem_backend',
+    )
+    ecat_config_arg = DeclareLaunchArgument(
+        'ecat_config',
+        default_value='',
+        description='Path to generated EcatV2_Master config.yaml when launch_ecat:=true',
+    )
+    rt_cpu_arg = DeclareLaunchArgument(
+        'rt_cpu',
+        default_value='0',
+        description='Isolated CPU core for soem_backend RT loop',
+    )
+    non_rt_cpus_arg = DeclareLaunchArgument(
+        'non_rt_cpus',
+        default_value='1-7',
+        description='Non-RT CPU cores for soem_backend',
+    )
+
     return LaunchDescription([
-        # 1. 核心控制大脑节点 (包含所有的 Plan 1-5 算法：EKF, FSM, 动力学等)
+        launch_ecat_arg,
+        ecat_interface_arg,
+        ecat_config_arg,
+        rt_cpu_arg,
+        non_rt_cpus_arg,
+
+        # 可选：同时拉起 EcatV2_Master EtherCAT 主站节点（需在 root 下运行）
+        Node(
+            package='soem_wrapper',
+            executable='soem_backend',
+            name='soem_backend',
+            output='screen',
+            emulate_tty=True,
+            condition=IfCondition(LaunchConfiguration('launch_ecat')),
+            parameters=[{
+                'interface': LaunchConfiguration('ecat_interface'),
+                'rt_cpu': LaunchConfiguration('rt_cpu'),
+                'non_rt_cpus': LaunchConfiguration('non_rt_cpus'),
+                'config_file': LaunchConfiguration('ecat_config'),
+            }],
+        ),
+
+        # 核心控制节点 (直连 EcatV2_Master 12 个实车电机 + HiPNUC CH010 IMU + SBUS RC)
         Node(
             package='robot_control',
             executable='mobed_control_node',
             name='mobed_control_node',
             output='screen',
-            emulate_tty=True, # 保证日志颜色输出
-            parameters=[
-                # 这里可以添加预留的 ROS 参数，例如：
-                # {"use_sim_time": False}
-            ]
+            emulate_tty=True,  # 保证日志颜色输出
+            parameters=[hardware_config],
         ),
-        
-        # 2. UDP 硬件/仿真接口桥接节点 (与宿主机 Mac MuJoCo 通信)
-        Node(
-            package='mobed_hardware_interface',
-            executable='udp_interface',
-            name='udp_interface',
-            output='screen',
-            emulate_tty=True
-        )
-        
-        # 键盘遥控由宿主机独立浮动控制看板 mac_teleop_gui.py 经 UDP 自动无缝转发至 ROS 2 话题。
     ])

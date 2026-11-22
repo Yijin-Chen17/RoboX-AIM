@@ -2,6 +2,13 @@
 
 ---
 
+## 📁 仓库结构
+
+- `RoboX_ws/`：真车 ROS 2 工作空间（仅包含实车控制节点、算法库、接口定义与启动配置）
+- `sim/`：仿真环境（MuJoCo 仿真脚本、机器人/场地模型、CAD 源文件、原生动态库桥接与编译脚本）
+
+---
+
 ## 🛠️ 环境配置
 
 ### 1. 系统依赖
@@ -20,7 +27,7 @@ brew install cmake eigen glfw
 sudo apt update && sudo apt install -y build-essential cmake libglfw3-dev libeigen3-dev
 ```
 
-### 2. Python 虚拟环境与依赖安装
+### 2. Python 虚拟环境与依赖安装（仿真）
 
 ```bash
 # 创建并激活虚拟环境
@@ -28,32 +35,32 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # 安装依赖
-pip install -r requirements.txt
+pip install -r sim/requirements.txt
 ```
 
-### 3. 编译动态库
+### 3. 编译仿真原生动态库
 
-在项目根目录下执行编译脚本，生成所需的动态库：
+在项目根目录下执行编译脚本，生成仿真所需的动态库：
 
 ```bash
-./scripts/build_native_dylib.sh
+./sim/scripts/build_native_dylib.sh
 ```
 
 ---
 
 ## 🚀 使用方法
 
-### 1. 运行程序
+### 1. 运行仿真程序
 
 启动主程序：
 
 ```bash
-python3 mobed_sim_native.py
+python3 sim/mobed_sim_native.py
 ```
 
 转向和偏心臂的 MIT 指令定义及仿真力矩计算在
 `RoboX_ws/src/robot_control/include/robot_control/controllers/mit_servo.hpp`。
-更新后先运行 `./scripts/build_native_dylib.sh`。原生仿真每个物理步调用 C++ 计算力矩。
+更新后先运行 `./sim/scripts/build_native_dylib.sh`。原生仿真每个物理步通过 `sim/native_core/` 调用 C++ 计算力矩。
 
 接实车时，先把控制器的舵角和偏心臂目标角转换到各电机的输出轴坐标，校准方向和零位。
 用对应的 `steeringMitCommand` 或 `eccentricMitCommand` 生成五个 MIT 指令字段，再按电机配置编码成 CAN 帧。
@@ -63,27 +70,27 @@ python3 mobed_sim_native.py
 
 - **场景选项**（`--arena`）：
   ```bash
-  python3 mobed_sim_native.py --arena rmuc2027          # 默认：RMUC 2027 完整高精度场地 + ROBOX V2
-  python3 mobed_sim_native.py --arena rmuc2027_physics  # RMUC 2027 纯碰撞加速模式
-  python3 mobed_sim_native.py --arena playground        # 障碍台阶测试台
-  python3 mobed_sim_native.py --arena flat              # 平地
+  python3 sim/mobed_sim_native.py --arena rmuc2027          # 默认：RMUC 2027 完整高精度场地 + ROBOX V2
+  python3 sim/mobed_sim_native.py --arena rmuc2027_physics  # RMUC 2027 纯碰撞加速模式
+  python3 sim/mobed_sim_native.py --arena playground        # 障碍台阶测试台
+  python3 sim/mobed_sim_native.py --arena flat              # 平地
   ```
 - **模式选项**（`--climb`）：
   ```bash
-  python3 mobed_sim_native.py --climb normal   # 默认：0–80 mm 小台阶
-  python3 mobed_sim_native.py --climb stair    # 独立的 200 mm 攀爬
-  python3 mobed_sim_native.py --climb off      # 关闭攀爬
+  python3 sim/mobed_sim_native.py --climb normal   # 默认：0–80 mm 小台阶
+  python3 sim/mobed_sim_native.py --climb stair    # 独立的 200 mm 攀爬
+  python3 sim/mobed_sim_native.py --climb off      # 关闭攀爬
   ```
   仿真中按 `1` 进入 normal，按 `2` 进入 200 mm，按 `0` 关闭攀爬。切换会清除上一模式的攀爬进度。测试小台阶时，在 normal 下用外展姿态直行接近台阶。
   原生仿真在启动 normal 攀爬前会测量前方碰撞地形的高度，高于 80 mm 时保持待机。
 - **初始位置/状态**（`--keyframe`）：
   ```bash
-  python3 mobed_sim_native.py --keyframe home_red           # 红方基地出生点（朝向场地中心）
-  python3 mobed_sim_native.py --keyframe home_blue          # 蓝方基地出生点（朝向场地中心）
-  python3 mobed_sim_native.py --keyframe central_passage    # 中央隧道入口
-  python3 mobed_sim_native.py --keyframe road_red           # 红方起伏路
-  python3 mobed_sim_native.py --keyframe ramp_red           # 红方飞坡
-  python3 mobed_sim_native.py --keyframe test_platform_top  # 中央高地平台
+  python3 sim/mobed_sim_native.py --keyframe home_red           # 红方基地出生点（朝向场地中心）
+  python3 sim/mobed_sim_native.py --keyframe home_blue          # 蓝方基地出生点（朝向场地中心）
+  python3 sim/mobed_sim_native.py --keyframe central_passage    # 中央隧道入口
+  python3 sim/mobed_sim_native.py --keyframe road_red           # 红方起伏路
+  python3 sim/mobed_sim_native.py --keyframe ramp_red           # 红方飞坡
+  python3 sim/mobed_sim_native.py --keyframe test_platform_top  # 中央高地平台
   ```
 
 ---
@@ -114,12 +121,18 @@ ROS 2 通过 `/mobed/spin`（`std_msgs/msg/Int8`）请求小陀螺。发送 `1` 
 
 ---
 
-### 3. ROS 2 方式（可选）
+### 3. 实车 ROS 2 运行方式
 
-如需通过 ROS 2 运行：
+`robot_control` 依赖 `EcatV2_Master` 中的 `custom_msgs`。在实车工控机（Ubuntu + ROS 2）上先编译并加载 `EcatV2_Master`，再编译并启动 `RoboX_ws`：
 
 ```bash
-cd RoboX_ws
+# 1. 编译 EcatV2_Master（提供 custom_msgs 与 EtherCAT 主站节点）
+cd EcatV2_Master
+colcon build --symlink-install
+source install/setup.bash
+
+# 2. 编译并启动 RoboX_ws（12 电机参数与话题映射见 RoboX_ws/src/robot_bringup/config/mobed_hardware.yaml）
+cd ../RoboX_ws
 colcon build --symlink-install
 source install/setup.bash
 ros2 launch robot_bringup mobed_core.launch.py
