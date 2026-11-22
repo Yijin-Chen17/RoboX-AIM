@@ -107,15 +107,17 @@ void SrbdModel::buildDynamicsConstraints(
     // Active load transfer feedforward: planar accelerations (ax, ay) acting at CoM height
     // produce inertial pitching and rolling moments that vertical GRFs must counteract.
     // tau_load_transfer = r_com x (m * a_desired_planar)
-    double z_com = body_state_.position.z() + (R * Eigen::Vector3d(0.0, 0.0, com_z_shift_)).z();
+    const Eigen::Vector3d p_com = body_state_.position + R * Eigen::Vector3d(0.0, 0.0, com_z_shift_);
+    double support_height = 0.0;
+    for (const int i : contact_indices) {
+        support_height += p_com.z() - contact_points_[i].z();
+    }
+    support_height /= n_contact;
     Eigen::Vector3d a_planar(desired_linear_accel.x(), desired_linear_accel.y(), 0.0);
-    Eigen::Vector3d tau_inertial = Eigen::Vector3d(0.0, 0.0, z_com).cross(m * a_planar);
+    Eigen::Vector3d tau_inertial = Eigen::Vector3d(0.0, 0.0, support_height).cross(m * a_planar);
 
     // Angular part: I * alpha_desired + omega x (I * omega) + tau_inertial
     b.tail<3>() = I_world * desired_angular_accel + omega.cross(I_world * omega) + tau_inertial;
-
-    // Composite CoM in world frame
-    Eigen::Vector3d p_com = body_state_.position + R * Eigen::Vector3d(0.0, 0.0, com_z_shift_);
 
     for (int j = 0; j < n_contact; ++j) {
         int leg_idx = contact_indices[j];

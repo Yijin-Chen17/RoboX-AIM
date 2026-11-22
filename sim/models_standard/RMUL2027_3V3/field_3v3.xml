@@ -1,6 +1,28 @@
 <?xml version='1.0' encoding='utf-8'?>
 <mujocoinclude>
   <asset>
+    <texture name="3v3_skybox" type="skybox" builtin="gradient" rgb1="0.16 0.20 0.27" rgb2="0.06 0.08 0.11" width="512" height="512" />
+    <texture name="tex_3v3_floor" type="2d" file="textures/3v3_floor_silkscreen.png" />
+    <texture name="tex_3v3_center" type="2d" file="textures/3v3_center_island.png" />
+    <texture name="tex_3v3_highland_blue" type="2d" file="textures/3v3_highland_blue.png" />
+    <texture name="tex_3v3_highland_red" type="2d" file="textures/3v3_highland_red.png" />
+    <texture name="tex_3v3_bridge" type="2d" file="textures/3v3_bridge_deck.png" />
+    <texture name="tex_3v3_stadium" type="2d" file="textures/3v3_stadium_floor.png" />
+
+    <material name="mat_3v3_body" rgba="0.16 0.18 0.22 1" specular="0.22" shininess="0.35" />
+    <material name="mat_3v3_rim" rgba="0.52 0.44 0.30 1" specular="0.52" shininess="0.64" />
+    <material name="mat_3v3_floor" texture="tex_3v3_floor" specular="0.12" shininess="0.22" reflectance="0.03" />
+    <material name="mat_3v3_center" texture="tex_3v3_center" specular="0.22" shininess="0.36" reflectance="0.04" />
+    <material name="mat_3v3_highland_blue" texture="tex_3v3_highland_blue" specular="0.20" shininess="0.34" />
+    <material name="mat_3v3_highland_red" texture="tex_3v3_highland_red" specular="0.20" shininess="0.34" />
+    <material name="mat_3v3_bridge" texture="tex_3v3_bridge" specular="0.45" shininess="0.55" />
+    <material name="mat_3v3_blue_trim" rgba="0.15 0.43 0.84 1" specular="0.38" shininess="0.48" />
+    <material name="mat_3v3_red_trim" rgba="0.78 0.17 0.20 1" specular="0.38" shininess="0.48" />
+    <material name="mat_3v3_silver" rgba="0.64 0.68 0.75 1" specular="0.58" shininess="0.68" />
+    <material name="mat_3v3_frame" rgba="0.14 0.16 0.20 1" specular="0.45" shininess="0.55" />
+    <material name="mat_3v3_glass" rgba="0.58 0.72 0.88 0.11" specular="0.68" shininess="0.85" />
+    <material name="mat_3v3_stadium" texture="tex_3v3_stadium" texrepeat="10 10" specular="0.08" shininess="0.15" />
+
     <mesh name="rmul_3v3_body_vis" file="meshes/part_001_assembly_001.stl" scale="0.001 0.001 0.001" />
     <mesh name="rmul_3v3_rim_vis" file="meshes/part_002_assembly_002.stl" scale="0.001 0.001 0.001" />
     <mesh name="col_plat_notch_L" vertex="-3.50000 2.98000 0.00000 -1.50000 2.98000 0.00000 -1.63860 3.06000 0.00000 -3.36140 3.06000 0.00000 -3.50000 2.98000 0.20000 -1.50000 2.98000 0.20000 -1.63860 3.06000 0.20000 -3.36140 3.06000 0.20000" />
@@ -17,11 +39,70 @@
     <mesh name="col_bridge_R_rampS" vertex="2.32500 -4.00000 0.20000 2.67500 -4.00000 0.20000 2.67500 -3.94000 0.20000 2.32500 -3.94000 0.20000 2.32500 -4.00000 0.21000 2.67500 -4.00000 0.21000 2.67500 -3.94000 0.27000 2.32500 -3.94000 0.27000" />
   </asset>
   <worldbody>
-    <light name="sun_3v3" directional="true" pos="0 0 12" dir="0.3 0.45 -1.1" diffuse="0.70 0.70 0.68" specular="0.22 0.22 0.22" castshadow="true" />
-    <light name="fill_3v3" directional="true" pos="0 0 10" dir="-0.35 -0.45 -0.85" diffuse="0.26 0.28 0.32" specular="0.02 0.02 0.02" castshadow="false" />
+    <light name="sun_3v3" directional="true" pos="0 0 12" dir="0.32 0.45 -1.0" diffuse="0.74 0.73 0.70" specular="0.28 0.28 0.28" castshadow="true" />
+    <light name="fill_3v3" directional="true" pos="0 0 10" dir="-0.45 -0.35 -0.82" diffuse="0.24 0.28 0.36" specular="0.06 0.08 0.10" castshadow="false" />
+    <light name="rim_3v3" directional="true" pos="0 0 8" dir="0.15 -0.60 -0.45" diffuse="0.16 0.16 0.18" specular="0.14 0.14 0.14" castshadow="false" />
     <camera name="overview_3v3" pos="0 -11 10" xyaxes="1 0 0 0 0.67 0.74" />
-    <geom name="rmul_3v3_body_visual" type="mesh" mesh="rmul_3v3_body_vis" pos="0 0.1600 0.1600" group="1" contype="0" conaffinity="0" rgba="0.33 0.35 0.39 1" />
-    <geom name="rmul_3v3_rim_visual" type="mesh" mesh="rmul_3v3_rim_vis" pos="0 0.1600 0.1600" group="1" contype="0" conaffinity="0" rgba="0.86 0.56 0.14 1" />
+    <geom name="rmul_3v3_body_visual" type="mesh" mesh="rmul_3v3_body_vis" pos="0 0.1600 0.1600" group="1" contype="0" conaffinity="0" material="mat_3v3_body" />
+    <geom name="rmul_3v3_rim_visual" type="mesh" mesh="rmul_3v3_rim_vis" pos="0 0.1600 0.1650" group="1" contype="0" conaffinity="0" material="mat_3v3_rim" />
+
+    <!-- Studio Surround Apron (Visual Only) -->
+    <geom name="vis_3v3_stadium" type="box" pos="0 0 -0.06" size="18 14 0.01" group="1" contype="0" conaffinity="0" material="mat_3v3_stadium" />
+
+    <!-- Competition Floor & Central Control Island Silkscreen Overlays (Visual Only) -->
+    <geom name="vis_3v3_floor_plate" type="box" pos="0 0 0.0042" size="5.996 3.996 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_floor" />
+    <geom name="vis_3v3_center_island" type="box" pos="0 0 0.0122" size="1.496 1.496 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_center" />
+
+    <!-- Blue Highland Deck & Architectural Trim (Visual Only) -->
+    <geom name="vis_3v3_plat_L_top" type="box" pos="-2.500 0.990 0.2040" size="0.996 1.986 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_highland_blue" />
+    <geom name="vis_3v3_plat_L_notch" type="box" pos="-2.500 3.015 0.2040" size="0.860 0.036 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_plat_LW_top" type="box" pos="-3.0875 3.930 0.2040" size="0.410 0.068 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_plat_LE_top" type="box" pos="-1.9125 3.930 0.2040" size="0.410 0.068 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_plat_L_sideW" type="box" pos="-3.503 0.990 0.178" size="0.003 1.985 0.022" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_plat_L_sideE" type="box" pos="-1.497 0.990 0.178" size="0.003 1.985 0.022" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_plat_L_sideS" type="box" pos="-2.500 -1.003 0.178" size="0.998 0.003 0.022" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+
+    <!-- Red Highland Deck & Architectural Trim (Visual Only) -->
+    <geom name="vis_3v3_plat_R_top" type="box" pos="2.500 -0.990 0.2040" size="0.996 1.986 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_highland_red" />
+    <geom name="vis_3v3_plat_R_notch" type="box" pos="2.500 -3.015 0.2040" size="0.860 0.036 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+    <geom name="vis_3v3_plat_RW_top" type="box" pos="1.9125 -3.930 0.2040" size="0.410 0.068 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+    <geom name="vis_3v3_plat_RE_top" type="box" pos="3.0875 -3.930 0.2040" size="0.410 0.068 0.0004" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+    <geom name="vis_3v3_plat_R_sideE" type="box" pos="3.503 -0.990 0.178" size="0.003 1.985 0.022" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+    <geom name="vis_3v3_plat_R_sideW" type="box" pos="1.497 -0.990 0.178" size="0.003 1.985 0.022" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+    <geom name="vis_3v3_plat_R_sideN" type="box" pos="2.500 1.003 0.178" size="0.998 0.003 0.022" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+
+    <!-- Bridges & Side Rails (Visual Only) -->
+    <geom name="vis_3v3_bridge_L_top" type="box" pos="-2.500 3.460 0.2715" size="0.172 0.480 0.0005" group="1" contype="0" conaffinity="0" material="mat_3v3_bridge" />
+    <geom name="vis_3v3_bridge_L_railW" type="box" pos="-2.677 3.460 0.268" size="0.006 0.480 0.012" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_bridge_L_railE" type="box" pos="-2.323 3.460 0.268" size="0.006 0.480 0.012" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_bridge_R_top" type="box" pos="2.500 -3.460 0.2715" size="0.172 0.480 0.0005" group="1" contype="0" conaffinity="0" material="mat_3v3_bridge" />
+    <geom name="vis_3v3_bridge_R_railW" type="box" pos="2.323 -3.460 0.268" size="0.006 0.480 0.012" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+    <geom name="vis_3v3_bridge_R_railE" type="box" pos="2.677 -3.460 0.268" size="0.006 0.480 0.012" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+
+    <!-- Center Cover Walls & Corner Supply Pillars Accents (Visual Only) -->
+    <geom name="vis_3v3_wall_L_cap" type="box" pos="-1.575 0.800 0.404" size="0.077 0.900 0.004" group="1" contype="0" conaffinity="0" material="mat_3v3_silver" />
+    <geom name="vis_3v3_wall_L_band" type="box" pos="-1.575 0.800 0.340" size="0.078 0.890 0.022" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_wall_R_cap" type="box" pos="1.575 -0.800 0.404" size="0.077 0.900 0.004" group="1" contype="0" conaffinity="0" material="mat_3v3_silver" />
+    <geom name="vis_3v3_wall_R_band" type="box" pos="1.575 -0.800 0.340" size="0.078 0.890 0.022" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+
+    <geom name="vis_3v3_pillar_NW_cap" type="box" pos="-5.600 3.775 0.407" size="0.345 0.220 0.004" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_pillar_NW_band" type="box" pos="-5.600 3.547 0.200" size="0.320 0.003 0.175" group="1" contype="0" conaffinity="0" material="mat_3v3_blue_trim" />
+    <geom name="vis_3v3_pillar_SE_cap" type="box" pos="5.600 -3.775 0.407" size="0.345 0.220 0.004" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+    <geom name="vis_3v3_pillar_SE_band" type="box" pos="5.600 -3.547 0.200" size="0.320 0.003 0.175" group="1" contype="0" conaffinity="0" material="mat_3v3_red_trim" />
+
+    <!-- Upper Smoked Acrylic Protective Panels & Posts (Visual Only) -->
+    <geom name="vis_3v3_glass_N" type="box" pos="0 4.150 0.610" size="6.100 0.012 0.190" group="1" contype="0" conaffinity="0" material="mat_3v3_glass" />
+    <geom name="vis_3v3_glass_S" type="box" pos="0 -4.150 0.610" size="6.100 0.012 0.190" group="1" contype="0" conaffinity="0" material="mat_3v3_glass" />
+    <geom name="vis_3v3_glass_W" type="box" pos="-6.150 0 0.610" size="0.012 4.100 0.190" group="1" contype="0" conaffinity="0" material="mat_3v3_glass" />
+    <geom name="vis_3v3_glass_E" type="box" pos="6.150 0 0.610" size="0.012 4.100 0.190" group="1" contype="0" conaffinity="0" material="mat_3v3_glass" />
+    <geom name="vis_3v3_post_NW" type="box" pos="-6.150 4.150 0.615" size="0.030 0.030 0.200" group="1" contype="0" conaffinity="0" material="mat_3v3_frame" />
+    <geom name="vis_3v3_post_NE" type="box" pos="6.150 4.150 0.615" size="0.030 0.030 0.200" group="1" contype="0" conaffinity="0" material="mat_3v3_frame" />
+    <geom name="vis_3v3_post_SW" type="box" pos="-6.150 -4.150 0.615" size="0.030 0.030 0.200" group="1" contype="0" conaffinity="0" material="mat_3v3_frame" />
+    <geom name="vis_3v3_post_SE" type="box" pos="6.150 -4.150 0.615" size="0.030 0.030 0.200" group="1" contype="0" conaffinity="0" material="mat_3v3_frame" />
+    <geom name="vis_3v3_post_N0" type="box" pos="0 4.150 0.615" size="0.025 0.025 0.200" group="1" contype="0" conaffinity="0" material="mat_3v3_frame" />
+    <geom name="vis_3v3_post_S0" type="box" pos="0 -4.150 0.615" size="0.025 0.025 0.200" group="1" contype="0" conaffinity="0" material="mat_3v3_frame" />
+    <geom name="vis_3v3_post_W0" type="box" pos="-6.150 0 0.615" size="0.025 0.025 0.200" group="1" contype="0" conaffinity="0" material="mat_3v3_frame" />
+    <geom name="vis_3v3_post_E0" type="box" pos="6.150 0 0.615" size="0.025 0.025 0.200" group="1" contype="0" conaffinity="0" material="mat_3v3_frame" />
     <geom name="col_floor_main" type="box" pos="0.00000 0.00000 -0.02500" size="6.30000 4.30000 0.02500" group="3" contype="1" conaffinity="1" condim="3" friction="0.85 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" rgba="0.2 0.8 0.3 0.35" />
     <geom name="col_pad_spawn_blue" type="box" pos="-4.75000 3.00000 -0.00100" size="1.25000 1.00000 0.00400" group="3" contype="1" conaffinity="1" condim="3" friction="0.85 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" rgba="0.2 0.8 0.3 0.35" />
     <geom name="col_pad_spawn_red" type="box" pos="4.75000 -3.00000 -0.00100" size="1.25000 1.00000 0.00400" group="3" contype="1" conaffinity="1" condim="3" friction="0.85 0.005 0.0001" solref="0.006 1" solimp="0.9 0.95 0.001" rgba="0.2 0.8 0.3 0.35" />

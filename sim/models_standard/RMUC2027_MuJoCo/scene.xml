@@ -4,15 +4,17 @@
   <option timestep=".002" integrator="implicitfast" solver="Newton" iterations="30" tolerance="1e-8" cone="pyramidal" gravity="0 0 -9.81" />
   <visual>
     <global offwidth="1920" offheight="1080" azimuth="135" elevation="-55" />
-    <quality shadowsize="2048" />
-    <headlight ambient=".3 .3 .3" diffuse=".4 .4 .4" specular=".03 .03 .03" />
-    <rgba haze=".94 .96 .98 1" />
-    <map znear=".005" zfar="20" fogstart="10" fogend="20" />
+    <quality shadowsize="4096" />
+    <headlight ambient="0.16 0.17 0.20" diffuse="0.24 0.25 0.28" specular="0.05 0.05 0.05" />
+    <rgba haze="0.08 0.10 0.14 1" />
+    <map znear="0.01" zfar="40" fogstart="22" fogend="50" />
   </visual>
-  <statistic center="0 0 .6" extent="17" />
+  <statistic center="0 0 .6" extent="18" />
   <include file="field.xml" />
   <worldbody>
-    <light name="field_light" pos="-6 -7 18" dir=".15 .2 -1" directional="true" castshadow="false" diffuse=".25 .25 .25" />
+    <light name="stadium_key" pos="0 0 18" dir="0.32 0.45 -1.0" directional="true" castshadow="true" diffuse="0.72 0.71 0.68" specular="0.28 0.28 0.28" />
+    <light name="stadium_fill" pos="0 0 16" dir="-0.45 -0.35 -0.80" directional="true" castshadow="false" diffuse="0.24 0.28 0.36" specular="0.06 0.08 0.10" />
+    <light name="stadium_rim" pos="0 0 10" dir="0.15 -0.60 -0.45" directional="true" castshadow="false" diffuse="0.16 0.16 0.18" specular="0.14 0.14 0.14" />
     <camera name="overview" pos="-26 -29 31" xyaxes=".7448 -.6673 0 .411 .4588 .7878" />
   </worldbody>
 </mujoco>

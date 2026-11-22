@@ -67,7 +67,8 @@ public:
     void reset();
     void setRobotModel(RobotModelType type);
     void update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out,
-                int spin_request = 0, bool normal_entry_allowed = true);
+                int spin_request = 0, bool normal_entry_allowed = true,
+                const double* measured_normal_loads = nullptr);
     controllers::SpinDrive::Phase spinPhase() const { return spin_drive_.phase(); }
 
 private:
@@ -82,6 +83,7 @@ private:
     std::unique_ptr<estimation::StateEstimator> state_estimator_;
     std::unique_ptr<estimation::TerrainEstimator> terrain_estimator_;
     std::unique_ptr<estimation::ContactDetector> contact_detector_;
+    estimation::WheelSupportEstimator wheel_support_estimator_;
     std::unique_ptr<estimation::ClimbGeometryEstimator> climb_geometry_estimator_;
     std::unique_ptr<tasks::TaskController> task_controller_;
 
@@ -156,6 +158,9 @@ extern "C" {
     void mobed_mit_servo_torques(const double* targets, const double* positions,
                                  const double* velocities, const double* torque_limits,
                                  double* torques);
+    void mobed_mit_servo_torques_with_feedforward(
+        const double* targets, const double* positions, const double* velocities,
+        const double* torque_limits, const double* eccentric_feedforward, double* torques);
     void* mobed_create();
     void  mobed_destroy(void* handle);
     void  mobed_reset(void* handle);
@@ -172,4 +177,8 @@ extern "C" {
                                       const robot_control::CommandInputs* cmd, double dt,
                                       robot_control::ActuatorOutputs* out, int spin_request,
                                       int normal_entry_allowed);
+    int mobed_update_with_wheel_loads(void* handle, const robot_control::SensorInputs* in,
+                                      const robot_control::CommandInputs* cmd, double dt,
+                                      robot_control::ActuatorOutputs* out, int spin_request,
+                                      int normal_entry_allowed, const double* measured_normal_loads);
 }

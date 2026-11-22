@@ -19,20 +19,20 @@ Eigen::Vector4d alignOutwardEndpoints(Eigen::Vector4d angles) {
 }  // namespace
 
 BalanceController::BalanceController(const BalanceControllerParams& params,
-                                     std::shared_ptr<kinematics::MobedKinematics> kinematics)
+                                     std::shared_ptr<kinematics::MobedKinematics> kinematics,
+                                     const RobotParams& robot_params)
     : params_(params),
+      robot_params_(robot_params),
       kinematics_(kinematics),
-      srbd_model_(RobotParams()),
-      grf_optimizer_(RobotParams())
+      srbd_model_(robot_params),
+      grf_optimizer_(robot_params)
 {
     prev_ecc_angles_.setZero();
-    prev_compliance_shift_.setZero();
-    filtered_ecc_efforts_.setZero();
 }
 
 void BalanceController::setPayloadMass(double mass) {
+    robot_params_.total_mass += mass - robot_params_.payload_mass;
     robot_params_.payload_mass = mass;
-    robot_params_.total_mass = robot_params_.body_mass + mass;
     srbd_model_.setPayload(mass, robot_params_.payload_com_z_offset);
     grf_optimizer_.setRobotParams(robot_params_);
 }
@@ -116,38 +116,6 @@ Eigen::Vector4d BalanceController::update(
 }
 
 // ============================================================================
-// Gain Scheduling (Paper Eq 16-17)
-// ============================================================================
-void BalanceController::computeGainSchedule(
-    double current_height, double& w_grf, double& w_ik) const
-{
-    // ================================================================
-    // Gain Scheduling (Paper Eq 16-17)
-    //
-    // w_grf = sqrt(|h_max - h_cmd| / (h_max - h_mid))     (16)
-    // w_ik = (1 + Kh * max(0, h_cmd - h_mid) / (h_max - h_mid)) * (1 + m_payload / m_body)    (17)
-    // ================================================================
-
-    double h_max = robot_params_.max_height;
-    double h_mid = 0.5 * (robot_params_.min_height + robot_params_.max_height);
-    double h_cmd = std::clamp(current_height, robot_params_.min_height, h_max);
-
-    // To prevent division by zero, ensure h_max - h_mid > 0
-    double den = std::max(1e-6, h_max - h_mid);
-
-    // Eq 16: Exact paper square-root formula
-    // At h_cmd = h_max (0.22m): w_grf = 0.0 (rapid convergence to 0 near singularity)
-    // At h_cmd = h_mid (0.15m): w_grf = 1.0
-    // At h_cmd = h_min (0.08m): w_grf = sqrt(2.0) ≈ 1.414
-    w_grf = std::sqrt(std::max(0.0, std::abs(h_max - h_cmd)) / den);
-
-    // Eq 17: Kh = 7.0 from paper, scaled by dynamic payload mass ratio
-    double Kh = 7.0; // from paper
-    double mass_ratio = 1.0 + (robot_params_.payload_mass / robot_params_.body_mass);
-    w_ik = (1.0 + Kh * std::max(0.0, h_cmd - h_mid) / den) * mass_ratio;
-}
-
-// ============================================================================
 // PD Controller for desired body acceleration
 // ============================================================================
 void BalanceController::computeDesiredAcceleration(
@@ -179,7 +147,8 @@ void BalanceController::computeDesiredAcceleration(
     double vz = body_state.linear_velocity.z();
 
     desired_linear_accel = Eigen::Vector3d::Zero();
-    desired_linear_accel.z() = params_.kp_height * h_error - params_.kd_height * vz;
+    desired_linear_accel.z() = std::clamp(
+        params_.kp_height * h_error - params_.kd_height * vz, -2.5, 2.5);
 
     // Active longitudinal and centripetal acceleration feedforward (Paper Eq 11):
     // Preemptively cancels pitch load transfer from d(vx)/dt and roll load transfer from wz * vx
@@ -241,11 +210,11 @@ void BalanceController::computeDesiredAcceleration(
     alpha_heading.y() = params_.kp_pitch * e_R_heading.y() - params_.kd_pitch * omega_heading.y();
 
     // Transform desired angular acceleration back to world frame for SRBD
-    desired_angular_accel = R_yaw * alpha_heading;
+    desired_angular_accel = R_yaw * alpha_heading.cwiseMax(-10.0).cwiseMin(10.0);
 }
 
 double BalanceController::computeAdaptiveNominalHeight(
-    double target_height, double pitch_slope, double roll_slope, double commanded_roll) const
+    double target_height, double pitch_slope, double roll_slope, double commanded_roll, double dt) const
 {
     // Required vertical difference to maintain level chassis and accommodate active banking:
     // Take the maximum of terrain roll slope and commanded active bank roll
@@ -262,13 +231,13 @@ double BalanceController::computeAdaptiveNominalHeight(
     double safe_ceiling = 0.205 - delta_z_req;
     double safe_floor   = 0.115 + delta_z_req;
 
-    double h_min_bound = std::min(safe_floor, safe_ceiling);
-    double h_max_bound = std::max(safe_floor, safe_ceiling);
-    double h_adapt_raw = std::clamp(target_height, h_min_bound, h_max_bound);
+    const double h_adapt_raw = safe_floor <= safe_ceiling
+        ? std::clamp(target_height, safe_floor, safe_ceiling)
+        : 0.5 * (safe_floor + safe_ceiling);
 
-    // Low-pass filter to prevent high-frequency height bobbing on micro-bumps
-    double alpha_h = 0.15;
-    double h_adapt = alpha_h * h_adapt_raw + (1.0 - alpha_h) * prev_h_adapt_;
+    // A slow common height reference lets the individual wheels absorb short bumps.
+    const double alpha_h = dt / (params_.height_filter_time + dt);
+    const double h_adapt = prev_h_adapt_ + alpha_h * (h_adapt_raw - prev_h_adapt_);
     prev_h_adapt_ = h_adapt;
     return h_adapt;
 }
@@ -282,7 +251,6 @@ ControlOutput BalanceController::updateHybrid(
     double target_pitch,
     const Eigen::Vector4d& current_steer_angles,
     const Eigen::Vector4d& current_ecc_angles,
-    const Eigen::Vector4d& current_ecc_efforts,
     const BodyState& body_state,
     const std::array<Eigen::Vector3d, NUM_LEGS>& contact_points,
     const std::array<bool, NUM_LEGS>& contact_valid,
@@ -290,12 +258,13 @@ ControlOutput BalanceController::updateHybrid(
     double dt,
     bool e_stop_active,
     const Eigen::Vector3d& cmd_vel,
-    bool outward_half_circle)
+    bool outward_half_circle,
+    const estimation::WheelSupport* wheel_support)
 {
     ControlOutput output;
 
     if (e_stop_active) {
-        initialized_ = false;
+        reset();
         prev_ecc_angles_ = current_ecc_angles;
         output.ecc_angles = current_ecc_angles;
         output.ecc_torques = Eigen::Vector4d::Zero();
@@ -311,7 +280,7 @@ ControlOutput BalanceController::updateHybrid(
 
     // Compute dynamic adaptive height to preserve downhill leg stroke headroom and bank angle stroke
     double h_adapt = computeAdaptiveNominalHeight(
-        target_height, terrain_state.pitch_slope, terrain_state.roll_slope, safe_roll);
+        target_height, terrain_state.pitch_slope, terrain_state.roll_slope, safe_roll, dt);
 
     bool is_in_startup = !initialized_ || (time_since_init_ < STARTUP_DURATION);
 
@@ -388,45 +357,7 @@ ControlOutput BalanceController::updateHybrid(
         }
     }
 
-    // ================================================================
-    // 2. Compute GRF-based torque command
-    // ================================================================
-    // 2a. PD controller → desired acceleration (using h_adapt) + inertial feedforward
-    Eigen::Vector3d desired_lin_accel, desired_ang_accel;
-    computeDesiredAcceleration(h_adapt, safe_roll, safe_pitch,
-                               current_ecc_angles, body_state,
-                               desired_lin_accel, desired_ang_accel,
-                               cmd_vel, dt);
-
-    // 2b. Set SRBD state and solve QP for optimal GRFs
-    srbd_model_.setState(body_state, contact_points, contact_valid);
-
-    Eigen::Vector4d optimal_grf = grf_optimizer_.computeOptimalGRF(
-        srbd_model_, desired_lin_accel, desired_ang_accel);
-
-    // 2c. Map GRFs to eccentric joint torques via Jacobian
-    Eigen::Vector4d grf_torques = grf_optimizer_.grfToEccTorque(
-        optimal_grf, current_ecc_angles, current_steer_angles,
-        safe_roll, safe_pitch);
-
-    // Singularity protection (near vertical leg stroke |q_ecc| < 12 deg ≈ 0.21 rad):
-    // Smoothly taper off grf_torques to prevent torque blow-up as vertical Jacobian J_z -> 0
-    for (int i = 0; i < NUM_LEGS; ++i) {
-        double abs_q = std::abs(current_ecc_angles(i));
-        double distance_to_vertical = use_outward_sector ? std::min(abs_q, M_PI - abs_q) : abs_q;
-        double taper = std::clamp(distance_to_vertical / 0.21, 0.0, 1.0);
-        grf_torques(i) *= taper;
-    }
-
-    // ================================================================
-    // 3. Gain Scheduling — blend IK and GRF (using h_adapt)
-    // ================================================================
-    double w_grf, w_ik;
-    computeGainSchedule(h_adapt, w_grf, w_ik);
-
-    // ================================================================
-    // 4. Apply startup trajectory (same smoothing as position mode)
-    // ================================================================
+    // Smooth the nominal inverse-kinematics position.
     const Eigen::Vector4d tracking_angles = use_outward_sector
         ? alignOutwardEndpoints(current_ecc_angles) : current_ecc_angles;
     if (!initialized_) {
@@ -447,9 +378,6 @@ ControlOutput BalanceController::updateHybrid(
             smoothed_ik(i) = start_ecc_angles_(i) +
                 (ik_target(i) - start_ecc_angles_(i)) * smooth_progress;
         }
-        // During startup, use pure IK (no GRF torques for safety)
-        w_grf = 0.0;
-        w_ik = 1.0;
     } else {
         for (int i = 0; i < 4; ++i) {
             double smoothed = params_.filter_alpha * ik_target(i) +
@@ -463,99 +391,69 @@ ControlOutput BalanceController::updateHybrid(
 
     prev_ecc_angles_ = smoothed_ik;
 
-    // ================================================================
-    // 5. Hybrid Control Strategy (Eq 9 in paper) & Admittance Compliance
-    //    tau_ecc,i^* = w_grf * tau_grf,i + w_ik * tau_ik,i
-    // ================================================================
-    Eigen::Vector4d tau_ik = Eigen::Vector4d::Zero();
-    Eigen::Vector4d tau_hybrid = Eigen::Vector4d::Zero();
-    Eigen::Vector4d compliant_ecc_pos = smoothed_ik;
+    output.ecc_angles = smoothed_ik;
+    if (!wheel_support || is_in_startup) {
+        prev_compliance_shift_.setZero();
+        prev_support_torque_.setZero();
+        grf_optimizer_.reset();
+        prev_cmd_vel_ = cmd_vel;
+        return output;
+    }
 
+    Eigen::Vector3d desired_lin_accel, desired_ang_accel;
+    computeDesiredAcceleration(h_adapt, safe_roll, safe_pitch, current_ecc_angles,
+                               body_state, desired_lin_accel, desired_ang_accel, cmd_vel, dt);
+
+    Eigen::Vector4d force_limits;
+    Eigen::Vector4d authority;
     for (int i = 0; i < NUM_LEGS; ++i) {
-        // tau_ik: PD position tracking torque (Section III.E.1 & III.E.3)
-        double pos_err = smoothed_ik(i) - tracking_angles(i);
-        tau_ik(i) = params_.kp_ik * pos_err;
+        const double lever = std::abs(grf_optimizer_.computeVerticalJacobian(
+            i, current_ecc_angles(i), current_steer_angles(i), safe_roll, safe_pitch));
+        authority(i) = std::clamp((lever - 0.012) / 0.024, 0.0, 1.0);
+        const double load = wheel_support->normal_load(i);
+        const double load_weight = std::clamp(load / 35.0, 0.0, 1.0);
+        force_limits(i) = params_.support_torque_limit * authority(i) * load_weight
+                          / std::max(lever, 1e-6);
+    }
+    srbd_model_.setState(body_state, contact_points, contact_valid);
+    const Eigen::Vector4d optimal_grf = grf_optimizer_.computeOptimalGRF(
+        srbd_model_, desired_lin_accel, desired_ang_accel, force_limits);
+    const Eigen::Vector4d support_torque = grf_optimizer_.grfToEccTorque(
+        optimal_grf, current_ecc_angles, current_steer_angles, safe_roll, safe_pitch);
 
-        // Eq 9: Hybrid torque combination
-        tau_hybrid(i) = w_grf * grf_torques(i) + w_ik * tau_ik(i);
+    const double nominal_load = robot_params_.total_mass * robot_params_.gravity / NUM_LEGS;
+    for (int i = 0; i < NUM_LEGS; ++i) {
+        // Compare each wheel with its nominal share of weight, independent of
+        // the body controller's instantaneous demand for force redistribution.
+        const double load = wheel_support->normal_load(i);
+        const double load_error = load >= 0.0 ? load - nominal_load : 0.0;
+        const double excess_load = std::copysign(
+            std::max(0.0, std::abs(load_error) - params_.load_deadband), load_error);
+        const double desired_shift = std::clamp(params_.wheel_compliance * excess_load,
+            -params_.max_wheel_adjustment, params_.max_wheel_adjustment);
+        const double shift_step = params_.max_adjustment_speed * dt;
+        prev_compliance_shift_(i) += std::clamp(
+            desired_shift - prev_compliance_shift_(i), -shift_step, shift_step);
 
-        // ----------------------------------------------------------------
-        // Bilateral Force-Balanced Admittance Compliance (Phase 2.7 Upgrade)
-        //
-        // Ground Interaction:
-        // Use the QP-optimized normal force optimal_grf(i) to compute the exact
-        // dynamic equilibrium supporting torque for leg i:
-        //   nom_torque = |J_z,i * optimal_grf(i)|
-        //
-        // 1. When running over an obstacle/bump:
-        //    delta_tau = |tau_meas| - nom_torque > compliance_deadband
-        //    -> Retract leg (raw_shift in sign_leg direction) to absorb shock.
-        //
-        // 2. When wheel is unloaded or airborne (cleared bump, dip, or step-off):
-        //    delta_tau < -compliance_deadband
-        //    -> Gently extend leg DOWNWARDS (-sign_leg direction) to seek ground contact!
-        //
-        // 3. Fast Touch-Loss Reset:
-        //    If wheel is completely airborne (|tau_meas| < 0.35 * nom_torque),
-        //    increase filter alpha to touch_loss_decay_alpha to rapidly drop the suspended wheel.
-        // ----------------------------------------------------------------
-        double sign_leg = (smoothed_ik(i) >= 0.0) ? 1.0 : -1.0;
-        double J_z = grf_optimizer_.computeVerticalJacobian(
-            i, current_ecc_angles(i), current_steer_angles(i), safe_roll, safe_pitch);
-        double dyn_fz = (optimal_grf(i) > 1e-3) ? optimal_grf(i) : (robot_params_.body_mass * 9.81 / NUM_LEGS);
-        double nom_torque = std::abs(J_z * dyn_fz);
-        // 15Hz Low-pass filtering on measured torque to suppress contact impulse spikes
-        double raw_effort = std::abs(current_ecc_efforts(i));
-        filtered_ecc_efforts_(i) += params_.effort_lpf_alpha * (raw_effort - filtered_ecc_efforts_(i));
-        double meas_torque = filtered_ecc_efforts_(i);
-        double delta_tau = meas_torque - nom_torque;
+        const double target_lever = robot_params_.l_ecc * std::sin(smoothed_ik(i));
+        const double angle_shift = prev_compliance_shift_(i) * target_lever /
+                                   (target_lever * target_lever + 0.018 * 0.018);
+        const bool front = i == FL || i == FR;
+        output.ecc_angles(i) = use_outward_sector
+            ? std::clamp(smoothed_ik(i) + angle_shift, front ? 0.0 : -M_PI, front ? M_PI : 0.0)
+            : std::clamp(smoothed_ik(i) + angle_shift, params_.min_ecc_angle, params_.max_ecc_angle);
 
-        if (is_in_startup) {
-            prev_compliance_shift_.setZero();
-            compliant_ecc_pos(i) = smoothed_ik(i);
+        if (!contact_valid[i] || load < 0.0 || authority(i) == 0.0) {
+            prev_support_torque_(i) = 0.0;
         } else {
-            // Decouple virtual compliance authority from w_grf so shock absorption is maintained
-            // even when w_grf approaches 0 near max height (0.22m)
-            double compliance_scale = std::clamp(w_grf, 0.35, 1.0);
-
-            double raw_shift = 0.0;
-            if (delta_tau > params_.compliance_deadband) {
-                // Impact / excess load -> Retract
-                double excess = delta_tau - params_.compliance_deadband;
-                raw_shift = sign_leg * (compliance_scale * excess) / (params_.compliance_k + 1e-4);
-                raw_shift = std::clamp(raw_shift, -params_.max_compliance_shift, params_.max_compliance_shift);
-            } else if (delta_tau < -params_.compliance_deadband) {
-                // Airborne / lost load -> Extend downwards to seek ground
-                double deficit = -delta_tau - params_.compliance_deadband;
-                raw_shift = -sign_leg * (compliance_scale * deficit) / (params_.ground_seeking_k + 1e-4);
-                raw_shift = std::clamp(raw_shift, -params_.ground_seeking_max_shift, params_.ground_seeking_max_shift);
-            }
-
-            // Virtual damping with touch-loss reset acceleration
-            double effective_alpha = params_.compliance_filter_alpha;
-            if (meas_torque < 0.35 * nom_torque) {
-                effective_alpha = params_.touch_loss_decay_alpha;
-            }
-
-            prev_compliance_shift_(i) = effective_alpha * raw_shift
-                                      + (1.0 - effective_alpha) * prev_compliance_shift_(i);
-
-            compliant_ecc_pos(i) = smoothed_ik(i) + prev_compliance_shift_(i);
-            if (!use_outward_sector) {
-                compliant_ecc_pos(i) = std::clamp(compliant_ecc_pos(i), params_.min_ecc_angle, params_.max_ecc_angle);
-            }
-        }
-        if (use_outward_sector) {
-            const bool is_front = i == FL || i == FR;
-            compliant_ecc_pos(i) = std::clamp(compliant_ecc_pos(i),
-                                              is_front ? 0.0 : -M_PI, is_front ? M_PI : 0.0);
+            const double step = params_.support_torque_rate * dt;
+            prev_support_torque_(i) += std::clamp(
+                support_torque(i) - prev_support_torque_(i), -step, step);
         }
     }
 
-    output.ecc_angles  = compliant_ecc_pos;
-    output.ecc_torques = tau_hybrid;
-    output.ecc_mode    = ControlOutput::EccMode::HYBRID;
-
+    output.ecc_torques = prev_support_torque_;
+    output.ecc_mode = ControlOutput::EccMode::HYBRID;
     return output;
 }
 

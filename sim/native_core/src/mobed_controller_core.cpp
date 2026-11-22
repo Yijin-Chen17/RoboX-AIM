@@ -39,7 +39,7 @@ void MobedControllerCore::setRobotModel(RobotModelType type) {
     controllers::DrivingControllerParams drive_params;
     controllers::BalanceControllerParams balance_params;
     driving_controller_ = std::make_unique<controllers::DrivingController>(drive_params, kinematics_);
-    balance_controller_ = std::make_unique<controllers::BalanceController>(balance_params, kinematics_);
+    balance_controller_ = std::make_unique<controllers::BalanceController>(balance_params, kinematics_, robot_params_);
 
     if (type == RobotModelType::ROBOX_V2) {
         steer_signs_ = {1.0, 1.0, 1.0, 1.0};
@@ -57,6 +57,7 @@ void MobedControllerCore::setRobotModel(RobotModelType type) {
 
 void MobedControllerCore::reset() {
     spin_drive_.reset();
+    wheel_support_estimator_.reset();
     joints_initialized_ = false;
     is_homing_ = true;
     homing_timer_ = 0.0;
@@ -68,12 +69,14 @@ void MobedControllerCore::reset() {
     if (state_estimator_) state_estimator_->reset();
     if (terrain_estimator_) terrain_estimator_->reset();
     if (contact_detector_) contact_detector_->reset();
+    if (balance_controller_) balance_controller_->reset();
     if (climb_geometry_estimator_) climb_geometry_estimator_->reset();
     if (task_controller_) task_controller_->reset();
 }
 
 void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cmd, double dt, ActuatorOutputs& out,
-                                 int spin_request, bool normal_entry_allowed) {
+                                 int spin_request, bool normal_entry_allowed,
+                                 const double* measured_normal_loads) {
     if (dt <= 0.0 || dt > 0.5) return;
 
     transition_smoother_.update(dt);
@@ -166,19 +169,21 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     // ================================================================
     std::array<bool, NUM_LEGS> contact_valid = task_controller_->getContactValid();
 
-    // Verify contact force: if |effort| < 1.0 Nm during motion, leg is airborne
-    int supported_legs = 0;
-    for (int i = 0; i < NUM_LEGS; ++i) {
-        if (contact_valid[i] && std::abs(curr_ecc_efforts(i)) >= 1.0) {
-            supported_legs++;
-        }
-    }
-    if (supported_legs >= 3) {
+    const bool e_stop = cmd.e_stop != 0;
+    const estimation::WheelSupport* wheel_support = nullptr;
+    if (!is_homing_ && !e_stop && spin_request == 0 &&
+        spin_drive_.phase() == controllers::SpinDrive::Phase::IDLE &&
+        climb_mode_ != ClimbMode::STAIR_200MM && !task_controller_->isActive()) {
+        const Eigen::Vector4d signed_motor_torque =
+            curr_ecc_efforts.cwiseProduct(Eigen::Map<const Eigen::Vector4d>(ecc_signs_.data()));
+        wheel_support = &wheel_support_estimator_.update(
+            curr_ecc_angles, curr_ecc_velocities, signed_motor_torque,
+            robot_params_.l_ecc, dt, measured_normal_loads);
         for (int i = 0; i < NUM_LEGS; ++i) {
-            if (contact_valid[i] && std::abs(curr_ecc_efforts(i)) < 1.0) {
-                contact_valid[i] = false;
-            }
+            contact_valid[i] = contact_valid[i] && wheel_support->supporting[i];
         }
+    } else {
+        wheel_support_estimator_.reset();
     }
 
     state_estimator_->predict(imu, dt);
@@ -210,7 +215,6 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             imu.angular_velocity, task_controller_->getCurbHeight(), dt, curr_ecc_velocities);
     }
 
-    const bool e_stop = cmd.e_stop != 0;
     if (e_stop && task_controller_->isActive()) {
         task_controller_->abort();
     }
@@ -240,7 +244,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     bool climbing_active = task_controller_->isActive();
     if (!climbing_active) {
         bool is_stopped = (active_cmd_vel.norm() < 1e-3);
-        terrain_estimator_->update(foot_pos_in_base, R_base, contact_valid, is_stopped);
+        terrain_estimator_->update(foot_pos_in_base, R_base, contact_valid, is_stopped, dt);
     }
     TerrainState terrain_state = terrain_estimator_->getState();
 
@@ -358,7 +362,7 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     if (task_controller_->getClimbMode() == ClimbMode::STAIR_200MM && !task_controller_->hasClimbed()) {
         effective_target_height = 0.220; // 物理最高极限，保证 210.5mm 离地间隙 (q=0.0 rad 直立姿态)
     }
-    double active_height = is_homing_ ? 0.205 : effective_target_height;
+    double active_height = (is_homing_ || spin.ownsDrive()) ? 0.205 : effective_target_height;
     double active_roll   = is_homing_ ? 0.0 : target_roll;
     double active_pitch  = is_homing_ ? 0.0 : target_pitch;
 
@@ -385,9 +389,10 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
         ? Eigen::Vector3d::Zero() : active_cmd_vel;
     ControlOutput balance_out = balance_controller_->updateHybrid(
         active_height, active_roll, active_pitch,
-        target_steer, curr_ecc_angles, curr_ecc_efforts, body_state,
+        target_steer, curr_ecc_angles, body_state,
         contact_points_world, contact_valid, active_terrain_state, dt, e_stop, balance_twist,
-        climb_mode_ != ClimbMode::STAIR_200MM);
+        climb_mode_ != ClimbMode::STAIR_200MM,
+        (task_controller_->isActive() || spin.ownsDrive()) ? nullptr : wheel_support);
 
     Eigen::Vector4d target_ecc = balance_out.ecc_angles;
 
@@ -433,9 +438,9 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
     // Phase 8: Synthesize Actuator Outputs (Shortest-Arc CAD Unwrapping)
     // ================================================================
     for (int i = 0; i < 4; ++i) {
-        // Steering
+        // Steering (DM-J4310P-2EC conservative peak limit: 7.0 Nm; 3.5 Nm rated, 12.5 Nm peak)
         out.steer_pos[i] = target_steer(i) * steer_signs_[i];
-        out.steer_effort[i] = std::clamp(driving_controller_->getSteerTorques()(i) * steer_signs_[i], -10.0, 10.0);
+        out.steer_effort[i] = std::clamp(driving_controller_->getSteerTorques()(i) * steer_signs_[i], -7.0, 7.0);
 
         bool leg_is_overridden = task_controller_->isActive() && ecc_override_mask[i];
 
@@ -455,9 +460,9 @@ void MobedControllerCore::update(const SensorInputs& in, const CommandInputs& cm
             effort_cmd = 0.0;
         }
 
-        // DM-J4340P-2EC V1.1 conservative rated torque is 9 Nm (27 Nm peak)
+        // DM-J4340P-2EC V1.1 rated continuous torque is 12 Nm (40 Nm peak)
         // and must not be exceeded as a continuous position-control limit.
-        effort_cmd = std::clamp(effort_cmd, -9.0, 9.0);
+        effort_cmd = std::clamp(effort_cmd, -12.0, 12.0);
         out.ecc_effort[i] = effort_cmd;
 
         // Wheels
@@ -517,11 +522,22 @@ extern "C" {
 void mobed_mit_servo_torques(const double* targets, const double* positions,
                              const double* velocities, const double* torque_limits,
                              double* torques) {
+    mobed_mit_servo_torques_with_feedforward(
+        targets, positions, velocities, torque_limits, nullptr, torques);
+}
+
+void mobed_mit_servo_torques_with_feedforward(
+    const double* targets, const double* positions, const double* velocities,
+    const double* torque_limits, const double* eccentric_feedforward, double* torques) {
     using namespace robot_control::controllers;
     for (int i = 0; i < 8; ++i) {
-        const MitCommand command = i < 4
+        MitCommand command = i < 4
             ? steeringMitCommand(targets[i], positions[i])
             : eccentricMitCommand(targets[i]);
+        if (i >= 4 && eccentric_feedforward) {
+            command.torque_feedforward = eccentric_feedforward[i - 4];
+            limitMitFeedforward(command, positions[i], velocities[i], torque_limits[i]);
+        }
         torques[i] = mitServoTorque(command, positions[i], velocities[i], torque_limits[i]);
     }
 }
@@ -569,9 +585,17 @@ int mobed_update_spin_with_terrain(void* handle, const robot_control::SensorInpu
                                   const robot_control::CommandInputs* cmd, double dt,
                                   robot_control::ActuatorOutputs* out, int spin_request,
                                   int normal_entry_allowed) {
+    return mobed_update_with_wheel_loads(
+        handle, in, cmd, dt, out, spin_request, normal_entry_allowed, nullptr);
+}
+
+int mobed_update_with_wheel_loads(void* handle, const robot_control::SensorInputs* in,
+                                  const robot_control::CommandInputs* cmd, double dt,
+                                  robot_control::ActuatorOutputs* out, int spin_request,
+                                  int normal_entry_allowed, const double* measured_normal_loads) {
     if (!handle || !in || !cmd || !out) return 0;
     auto* core = static_cast<robot_control::MobedControllerCore*>(handle);
-    core->update(*in, *cmd, dt, *out, spin_request, normal_entry_allowed != 0);
+    core->update(*in, *cmd, dt, *out, spin_request, normal_entry_allowed != 0, measured_normal_loads);
     return static_cast<int>(core->spinPhase());
 }
 

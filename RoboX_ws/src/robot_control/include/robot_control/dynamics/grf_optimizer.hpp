@@ -32,6 +32,7 @@ public:
     explicit GrfOptimizer(const RobotParams& params = RobotParams());
 
     void setRobotParams(const RobotParams& params) { params_ = params; }
+    void reset() { prev_grf_result_.setZero(); }
 
     /**
      * @brief Compute optimal vertical GRFs for all legs.
@@ -39,19 +40,21 @@ public:
      * @param srbd      SRBD model with current state already set
      * @param desired_linear_accel   Desired body linear acceleration (m/s^2)
      * @param desired_angular_accel  Desired body angular acceleration (rad/s^2)
+     * @param force_limits           Per-wheel force ceilings, derived from available motor torque
      * @return Eigen::Vector4d  Optimal vertical GRF per leg [FL, FR, RL, RR] (N).
      *         Non-contact legs will have f_z = 0.
      */
     Eigen::Vector4d computeOptimalGRF(
         const SrbdModel& srbd,
         const Eigen::Vector3d& desired_linear_accel,
-        const Eigen::Vector3d& desired_angular_accel);
+        const Eigen::Vector3d& desired_angular_accel,
+        const Eigen::Vector4d& force_limits);
 
     /**
      * @brief Map vertical GRFs to eccentric joint torques via Jacobian transpose.
      *
      * For each leg, computes:
-     *   tau_ecc,i = J_z,i^T * f_z,i
+     *   tau_ecc,i = -J_z,i^T * f_z,i
      *
      * where J_z,i = dz_foot / dq_ecc,i is the vertical component of the
      * leg Jacobian w.r.t. the eccentric joint angle.

@@ -7,6 +7,7 @@
 #include "robot_control/core/mobed_types.hpp"
 #include "robot_control/dynamics/srbd_model.hpp"
 #include "robot_control/dynamics/grf_optimizer.hpp"
+#include "robot_control/estimation/wheel_support.hpp"
 
 namespace robot_control {
 namespace controllers {
@@ -28,48 +29,29 @@ struct BalanceControllerParams {
     double kd_attitude_pitch = 0.08;  // damping scale on gyro wy [rad/s -> rad]
     double attitude_deadband  = 0.008; // ~0.46 deg deadband on attitude errors to eliminate gyro noise amplification
 
-    // ---- Gain Scheduling (Paper Eq 16-17) ----
-    // Controls the blend between dynamics-based torque (GRF) and
-    // kinematics-based position (IK) commands.
-    //
-    // At max height (legs vertical), IK dominates because the Jacobian
-    // is near-singular and GRF mapping is unreliable.
-    // At lower heights, GRF dominates for superior dynamic balance.
-    //
-    // w_grf = (1 - height_ratio) * gain_grf_scale
-    // w_ik  = height_ratio * gain_ik_scale
-    // where height_ratio = (current_height - min_height) / (max_height - min_height)
-    double gain_grf_scale = 1.0;   // scaling factor for GRF weight
-    double gain_ik_scale  = 1.0;   // scaling factor for IK weight
+    // Body acceleration gains (position s^-2, velocity s^-1).
+    double kp_height = 28.0;
+    double kd_height = 5.0;
+    double kp_roll   = 18.0;
+    double kd_roll   = 3.0;
+    double kp_pitch  = 18.0;
+    double kd_pitch  = 3.0;
 
-    // ---- PD gains for desired body acceleration ----
-    // Used to compute the desired acceleration fed into the SRBD/GRF system
-    double kp_height = 200.0;  // N/m (stiffness for height tracking)
-    double kd_height = 40.0;   // N·s/m (damping for height tracking)
-    double kp_roll   = 100.0;  // Nm/rad
-    double kd_roll   = 20.0;   // Nm·s/rad
-    double kp_pitch  = 100.0;  // Nm/rad
-    double kd_pitch  = 20.0;   // Nm·s/rad
-
-    // ---- IK position PD gains for tau_ik in Eq 9 ----
-    double kp_ik = 150.0;      // Nm/rad
-    double kd_ik = 15.0;       // Nm·s/rad
-
-    // ---- Bilateral Admittance & Ground-Seeking Parameters (Phase 2.7) ----
-    double compliance_k             = 50.0; // Nm/rad (torque admittance stiffness for bump absorption)
-    double compliance_deadband      = 3.6;  // Nm (torque deadband to prevent micro-fluctuation jitter with kp=300 servos)
-    double max_compliance_shift     = 0.35; // rad (~20 deg), maximum upward compliance adjustment
-    double ground_seeking_k         = 30.0; // Nm/rad (downward admittance stiffness when wheel is airborne)
-    double ground_seeking_max_shift = 0.25; // rad (~14.3 deg), maximum downward ground-seeking extension
-    double compliance_filter_alpha  = 0.20; // dimensionless, normal IIR smoothing coefficient [0, 1]
-    double touch_loss_decay_alpha   = 0.45; // dimensionless, fast touch-loss recovery decay coefficient
-    double effort_lpf_alpha         = 0.20; // dimensionless, 15Hz low-pass filter for measured joint efforts
+    // Regular driving uses independent, bounded adjustments at each wheel.
+    double height_filter_time = 0.35;       // s
+    double load_deadband = 18.0;            // N
+    double wheel_compliance = 0.00014;      // m/N
+    double max_wheel_adjustment = 0.014;    // m
+    double max_adjustment_speed = 0.12;     // m/s
+    double support_torque_limit = 7.0;      // Nm, reserves torque for the MIT feedback loop
+    double support_torque_rate = 45.0;      // Nm/s
 };
 
 class BalanceController {
 public:
     BalanceController(const BalanceControllerParams& params,
-                      std::shared_ptr<kinematics::MobedKinematics> kinematics);
+                      std::shared_ptr<kinematics::MobedKinematics> kinematics,
+                      const RobotParams& robot_params = RobotParams());
 
     /**
      * @brief Update the balance controller step (position-only mode, backward compatible).
@@ -102,7 +84,6 @@ public:
         double target_pitch,
         const Eigen::Vector4d& current_steer_angles,
         const Eigen::Vector4d& current_ecc_angles,
-        const Eigen::Vector4d& current_ecc_efforts,
         const BodyState& body_state,
         const std::array<Eigen::Vector3d, NUM_LEGS>& contact_points,
         const std::array<bool, NUM_LEGS>& contact_valid,
@@ -110,12 +91,15 @@ public:
         double dt,
         bool e_stop_active = false,
         const Eigen::Vector3d& cmd_vel = Eigen::Vector3d::Zero(),
-        bool outward_half_circle = true);
+        bool outward_half_circle = true,
+        const estimation::WheelSupport* wheel_support = nullptr);
 
     void reset() {
         initialized_ = false;
         prev_cmd_vel_.setZero();
         prev_compliance_shift_.setZero();
+        prev_support_torque_.setZero();
+        grf_optimizer_.reset();
         prev_h_adapt_ = 0.205;
         time_since_init_ = 0.0;
     }
@@ -136,7 +120,8 @@ public:
      * bilateral leveling authority and compliance without singularity.
      */
     double computeAdaptiveNominalHeight(
-        double target_height, double pitch_slope, double roll_slope, double commanded_roll = 0.0) const;
+        double target_height, double pitch_slope, double roll_slope,
+        double commanded_roll, double dt) const;
 
 private:
     BalanceControllerParams params_;
@@ -150,22 +135,13 @@ private:
 
     Eigen::Vector4d prev_ecc_angles_;
     Eigen::Vector4d start_ecc_angles_;
-    Eigen::Vector4d prev_compliance_shift_;  // IIR filter state for virtual damping (Task 3.1)
-    Eigen::Vector4d filtered_ecc_efforts_ = Eigen::Vector4d::Zero(); // 15Hz LPF for measured efforts
+    Eigen::Vector4d prev_compliance_shift_ = Eigen::Vector4d::Zero();  // m, positive raises the wheel
+    Eigen::Vector4d prev_support_torque_ = Eigen::Vector4d::Zero();
     mutable double prev_h_adapt_ = 0.205;    // IIR filter state for adaptive height smoothing (nominal 0.205m)
     mutable Eigen::Vector3d prev_cmd_vel_ = Eigen::Vector3d::Zero();
     bool initialized_ = false;
     double time_since_init_ = 0.0;
     const double STARTUP_DURATION = 3.0; // 3 seconds to smoothly stand up
-
-    /**
-     * @brief Compute gain scheduling weights (Paper Eq 16-17).
-     *
-     * @param current_height  Current chassis height (m)
-     * @param[out] w_grf  Weight for GRF-based torque command
-     * @param[out] w_ik   Weight for IK-based position command
-     */
-    void computeGainSchedule(double current_height, double& w_grf, double& w_ik) const;
 
     /**
      * @brief Compute desired body acceleration from PD control.

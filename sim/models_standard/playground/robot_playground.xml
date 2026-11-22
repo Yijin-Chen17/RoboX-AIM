@@ -174,7 +174,7 @@
     <position name="act_steer_RL" joint="Steering_joint_LB" kp="300" kv="30" forcelimited="true" forcerange="-7 7" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
     <position name="act_steer_RR" joint="Steering_joint_RB" kp="300" kv="30" forcelimited="true" forcerange="-7 7" ctrllimited="true" ctrlrange="-3.14159 3.14159" />
 
-    <!-- Eccentric Posture Actuators (DM-J4340P-2EC V1.1: 9.0 Nm continuous feedforward, 27 Nm peak; physical clamp 12.0 Nm) -->
+    <!-- Eccentric Posture Actuators (DM-J4340P-2EC V1.1: 12.0 Nm rated continuous, 40 Nm peak; physical clamp 12.0 Nm) -->
     <position name="act_ecc_FL" joint="Posture_control_joint_LF" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
     <position name="act_ecc_FR" joint="Posture_control_joint_RF" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />
     <position name="act_ecc_RL" joint="Posture_control_joint_LB" kp="300" kv="30" forcelimited="true" forcerange="-12 12" ctrllimited="false" />

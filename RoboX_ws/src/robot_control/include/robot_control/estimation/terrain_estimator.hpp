@@ -42,11 +42,12 @@ public:
      * @param R_base           Body orientation rotation matrix (from IMU)
      * @param contact_valid    Array of 4 booleans indicating which legs are in contact
      * @param is_stopped       Whether robot is stationary (applies anti-latch flat decay)
+     * @param dt               Time since the previous update (s)
      */
     void update(const std::array<Eigen::Vector3d, NUM_LEGS>& foot_pos_in_base,
                 const Eigen::Matrix3d& R_base,
                 const std::array<bool, NUM_LEGS>& contact_valid,
-                bool is_stopped = false);
+                bool is_stopped = false, double dt = 0.01);
 
     /**
      * @brief Get the current terrain state.
@@ -67,6 +68,10 @@ private:
     double max_slope_angle_ = 0.35;     // rad (~20 deg), maximum allowed terrain slope angle
     Eigen::Vector3d gravity_normal_prev_ = Eigen::Vector3d(0.0, 0.0, 1.0);
     bool in_non_planar_zone_ = false;   // Hysteresis state for micro-bump rejection
+    double insufficient_support_time_ = 0.0;
+
+    void updateTerrainState(Eigen::Vector3d normal_gravity,
+                            const Eigen::Matrix3d& R_base, bool is_stopped);
 
     /**
      * @brief Fit a plane to a set of 3D points using SVD.

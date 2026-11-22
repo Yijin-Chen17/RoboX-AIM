@@ -125,7 +125,7 @@ struct ContactState {
 struct ControlOutput {
     Eigen::Vector4d steer_angles  = Eigen::Vector4d::Zero();  // rad
     Eigen::Vector4d ecc_angles    = Eigen::Vector4d::Zero();  // rad (position mode)
-    Eigen::Vector4d ecc_torques   = Eigen::Vector4d::Zero();  // Nm  (torque mode)
+    Eigen::Vector4d ecc_torques   = Eigen::Vector4d::Zero();  // Nm, motor support feedforward
     Eigen::Vector4d wheel_speeds  = Eigen::Vector4d::Zero();  // rad/s
 
     enum class EccMode { POSITION, TORQUE, HYBRID } ecc_mode = EccMode::POSITION;

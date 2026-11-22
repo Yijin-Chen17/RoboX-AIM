@@ -6,11 +6,12 @@
   </default>
   <visual>
     <global offwidth="1920" offheight="1080" azimuth="135" elevation="-55" />
-    <quality shadowsize="2048" />
-    <headlight ambient="0.3 0.3 0.3" diffuse="0.4 0.4 0.4" specular="0.03 0.03 0.03" />
-    <rgba haze="0.94 0.96 0.98 1" />
-    <map znear="0.005" zfar="20" fogstart="10" fogend="20" />
+    <quality shadowsize="4096" />
+    <headlight ambient="0.16 0.17 0.20" diffuse="0.24 0.25 0.28" specular="0.05 0.05 0.05" />
+    <rgba haze="0.08 0.10 0.14 1" />
+    <map znear="0.01" zfar="40" fogstart="22" fogend="50" />
   </visual>
+  <statistic center="0 0 0.2" extent="8" />
   <include file="field_3v3.xml" />
   <asset>
     <mesh name="part_01" file="../robox_v2/meshes/part_01.obj" />

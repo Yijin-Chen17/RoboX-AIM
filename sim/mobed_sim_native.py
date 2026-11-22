@@ -126,17 +126,19 @@ class MujocoMITActuators:
         self.qpos = model.jnt_qposadr[joint_ids]
         self.qvel = model.jnt_dofadr[joint_ids]
         self.position_target = data.qpos[self.qpos].copy()
+        self.eccentric_feedforward = np.zeros(4, dtype=np.float64)
         self.torque_limits = np.where(
             model.actuator_forcelimited[self.actuators],
             np.max(np.abs(model.actuator_forcerange[self.actuators]), axis=1),
             np.inf,
         )
         try:
-            self.compute_torques = lib.mobed_mit_servo_torques
+            self.compute_torques = lib.mobed_mit_servo_torques_with_feedforward
         except AttributeError as exc:
             raise RuntimeError("Rebuild the native control library with sim/scripts/build_native_dylib.sh for MIT control") from exc
         vector = np.ctypeslib.ndpointer(dtype=np.float64, shape=(8,), flags="C_CONTIGUOUS")
-        self.compute_torques.argtypes = [vector] * 5
+        effort_vector = np.ctypeslib.ndpointer(dtype=np.float64, shape=(4,), flags="C_CONTIGUOUS")
+        self.compute_torques.argtypes = [vector] * 4 + [effort_vector, vector]
         self.compute_torques.restype = None
 
         # Use direct torque in the native runner while keeping the MJCF usable
@@ -152,8 +154,35 @@ class MujocoMITActuators:
     def apply(self, data):
         self.compute_torques(
             self.position_target, data.qpos[self.qpos], data.qvel[self.qvel],
-            self.torque_limits, data.ctrl[self.actuators],
+            self.torque_limits, self.eccentric_feedforward, data.ctrl[self.actuators],
         )
+
+
+class WheelLoadSensor:
+    """Read loads through the simulated wheel-ground contact patches."""
+
+    def __init__(self, model, wheel_geoms):
+        self.model = model
+        self.wheel_indices = {geom: i for i, geom in enumerate(wheel_geoms) if geom >= 0}
+        self.static_geom = model.body_weldid[model.geom_bodyid] == 0
+        self.wrench = np.zeros(6, dtype=np.float64)
+        self.loads = (ctypes.c_double * 4)()
+
+    def read(self, data):
+        if len(self.wheel_indices) != 4:
+            return None
+        self.loads[:] = (0.0, 0.0, 0.0, 0.0)
+        for i in range(data.ncon):
+            contact = data.contact[i]
+            wheel = self.wheel_indices.get(contact.geom1)
+            other = contact.geom2
+            if wheel is None:
+                wheel = self.wheel_indices.get(contact.geom2)
+                other = contact.geom1
+            if wheel is not None and self.static_geom[other]:
+                mujoco.mj_contactForce(self.model, data, i, self.wrench)
+                self.loads[wheel] += max(0.0, self.wrench[0])
+        return self.loads
 
 
 class NormalCurbProbe:
@@ -318,7 +347,16 @@ def main():
     parser.add_argument('--climb', type=str, default='normal', choices=['normal', 'stair', 'on', 'off'],
                         help='Climb mode: normal (Mode 1: automatic 0-80mm curbs, default), stair (Mode 2: 200mm stair), off')
     parser.add_argument('--model', type=str, default=None, help='Custom MJCF model path')
+    parser.add_argument('--drive-height', type=float, help='Nominal driving height in meters (ROBOX V2 default: 0.175)')
+    parser.add_argument('--drive-speed', type=float, default=2.0,
+                        help='W/S speed limit in m/s for repeatable terrain tests (default: 2.0)')
+    parser.add_argument('--wheel-loads', choices=['simulation', 'estimate'], default='simulation',
+                        help='Use contact forces or replay the motor-torque load estimate used on hardware')
     args = parser.parse_args()
+    if args.drive_height is not None and not 0.08 <= args.drive_height <= 0.22:
+        parser.error('--drive-height must be between 0.08 and 0.22 m')
+    if not 0.0 < args.drive_speed <= 2.0:
+        parser.error('--drive-speed must be greater than 0 and at most 2.0 m/s')
 
     # 1. Select scene XML
     if args.model:
@@ -389,8 +427,8 @@ def main():
     lib.mobed_destroy.argtypes = [ctypes.c_void_p]
     lib.mobed_reset.argtypes = [ctypes.c_void_p]
     lib.mobed_set_robot_model.argtypes = [ctypes.c_void_p, ctypes.c_int]
-    lib.mobed_update_spin_with_terrain.restype = ctypes.c_int
-    lib.mobed_update_spin_with_terrain.argtypes = [
+    lib.mobed_update_with_wheel_loads.restype = ctypes.c_int
+    lib.mobed_update_with_wheel_loads.argtypes = [
         ctypes.c_void_p,
         ctypes.POINTER(SensorInputs),
         ctypes.POINTER(CommandInputs),
@@ -398,6 +436,7 @@ def main():
         ctypes.POINTER(ActuatorOutputs),
         ctypes.c_int,
         ctypes.c_int,
+        ctypes.POINTER(ctypes.c_double),
     ]
 
     controller = lib.mobed_create()
@@ -428,6 +467,7 @@ def main():
 
     chassis_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, 'chassis')
     curb_probe = NormalCurbProbe(model, chassis_id)
+    wheel_load_sensor = WheelLoadSensor(model, curb_probe.wheels)
     camera_ctrl = InteractiveCamera(model, chassis_id)
 
     # Register mouse callbacks
@@ -439,18 +479,19 @@ def main():
     scn = mujoco.MjvScene(model, maxgeom=max(4000, model.ngeom * 2))
     con = mujoco.MjrContext(model, mujoco.mjtFontScale.mjFONTSCALE_150)
 
-    # 5. Initialize Teleop Commander (2.0 m/s linear drive, 8.0 rad/s max stable spin)
+    # 5. Initialize keyboard driving commands
     teleop_commander = RoboMasterTeleopCommander(
-        max_lin_vel=2.0,     # 2.0 m/s forward/backward drive limit
+        max_lin_vel=args.drive_speed,
         max_strafe_vel=2.0,  # 2.0 m/s lateral strafe
         max_ang_vel=2.2,     # 2.2 rad/s turning (gated by MAX_LATERAL_ACC at speed)
-        spin_ang_vel=8.0     # 8.0 rad/s max stable in-place spin
+        spin_ang_vel=5.0,    # Q/E in-place spin limit
     )
 
     # Pre-allocate C structs
     s_in = SensorInputs()
     c_in = CommandInputs()
-    c_in.target_height = 0.228 if robot_model_type == 0 else 0.205
+    c_in.target_height = args.drive_height if args.drive_height is not None else (
+        0.175 if robot_model_type == 0 else 0.205)
     c_in.target_roll   = 0.0
     c_in.target_pitch  = 0.0
     c_in.posture_mode  = 0
@@ -476,11 +517,11 @@ def main():
     print("  MobED Direct GLFW Native Simulation Ready (100% Conflict-Free)")
     print("="*70)
     print("  Controls (Directly in 3D Window, Full Multi-Key Support):")
-    print("    [W / S]       Drive Forward / Backward (up to 2.0 m/s)")
+    print(f"    [W / S]       Drive Forward / Backward (up to {args.drive_speed:g} m/s)")
     print("    [W + A / D]   Agile Driving Curve + Motorcycle Lean (SIMULTANEOUS!)")
     print("    [A / D]       Pure Lateral Strafe (when stopped, 391mm Wide Stance)")
     print("    [V / B]       Toggle continuous spin CCW / CW (8.0 rad/s) with field-relative WASD")
-    print("    [Q / E]       In-place Spin CCW / CW (8.0 rad/s)")
+    print(f"    [Q / E]       In-place Spin CCW / CW ({teleop_commander.SPIN_ANG_VEL:.1f} rad/s)")
     print("    [Space / X]   Brake / Soft Stop (Release keys to coast to stop)")
     print("    [H]           Toggle Collision Overlay (Group 3: ON / OFF)")
     print("    [L]           Lower chassis to lowest stance (eccentric arms highest)")
@@ -543,20 +584,20 @@ def main():
     # Driver and gearbox efficiencies are not specified, therefore they are
     # intentionally not invented or folded into this displayed estimate.
     # Joint order: steering / eccentric posture / drive wheel.
-    # Motor order: DM-J4310P-2EC / DM-J4340P-2EC V1.1 (9 Nm 24V) / LK MF9010 V2 (17T).
+    # Motor order: DM-J4310P-2EC (24V) / DM-J4340P-2EC V1.1 (12 Nm 24V) / LK MF9010 V2 (17T).
     motor_gear = np.array([10.0] * 4 + [40.0] * 4 + [1.0] * 4)
     motor_kt = np.array([3.5 / (4.9 * 10.0)] * 4 +
-                        [9.0 / (2.5 * 40.0)] * 4 +
+                        [4.074 / 40.0] * 4 +
                         [0.16] * 4)
     motor_ke = np.array([
         60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
         60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
         60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
         60.0 / (2.0 * np.pi * (200.0 * 10.0 / 24.0)),
-        60.0 / (2.0 * np.pi * (52.5 * 40.0 / 24.0)),
-        60.0 / (2.0 * np.pi * (52.5 * 40.0 / 24.0)),
-        60.0 / (2.0 * np.pi * (52.5 * 40.0 / 24.0)),
-        60.0 / (2.0 * np.pi * (52.5 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (52.0 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (52.0 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (52.0 * 40.0 / 24.0)),
+        60.0 / (2.0 * np.pi * (52.0 * 40.0 / 24.0)),
         60.0 / (2.0 * np.pi * 45.0),
         60.0 / (2.0 * np.pi * 45.0),
         60.0 / (2.0 * np.pi * 45.0),
@@ -694,9 +735,10 @@ def main():
                     previous_spin_phase = spin_phase
                     normal_entry_allowed = (current_climb_mode == 1 and c_in.vx >= 0.10
                                             and curb_probe.allows_entry(data))
-                    spin_phase = lib.mobed_update_spin_with_terrain(
+                    wheel_loads = wheel_load_sensor.read(data) if args.wheel_loads == 'simulation' else None
+                    spin_phase = lib.mobed_update_with_wheel_loads(
                         controller, ctypes.byref(s_in), ctypes.byref(c_in), CONTROL_DT,
-                        ctypes.byref(out), spin_request, int(normal_entry_allowed))
+                        ctypes.byref(out), spin_request, int(normal_entry_allowed), wheel_loads)
                     if previous_spin_phase and not spin_phase:
                         spin_request = 0
                     if spin_phase:
@@ -785,6 +827,10 @@ def main():
                     # 5. Apply commands to MuJoCo actuators
                     mit_actuators.position_target[:4] = out.steer_pos
                     mit_actuators.position_target[4:] = out.ecc_pos
+                    if ecc_test_to_lowest or ecc_test_active or ecc_pose_hold:
+                        mit_actuators.eccentric_feedforward.fill(0.0)
+                    else:
+                        mit_actuators.eccentric_feedforward[:] = out.ecc_effort
                     data.ctrl[8:12] = out.wheel_vel
 
                 # The drive-side MIT loop tracks the held command at physics rate.

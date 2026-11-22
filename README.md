@@ -121,12 +121,18 @@ ROS 2 通过 `/mobed/spin`（`std_msgs/msg/Int8`）请求小陀螺。发送 `1` 
 
 ---
 
-### 3. ROS 2 方式（可选）
+### 3. 实车 ROS 2 运行方式
 
-如需通过 ROS 2 运行：
+`robot_control` 依赖 `EcatV2_Master` 中的 `custom_msgs`。在实车工控机（Ubuntu + ROS 2）上先编译并加载 `EcatV2_Master`，再编译并启动 `RoboX_ws`：
 
 ```bash
-cd RoboX_ws
+# 1. 编译 EcatV2_Master（提供 custom_msgs 与 EtherCAT 主站节点）
+cd EcatV2_Master
+colcon build --symlink-install
+source install/setup.bash
+
+# 2. 编译并启动 RoboX_ws（12 电机参数与话题映射见 RoboX_ws/src/robot_bringup/config/mobed_hardware.yaml）
+cd ../RoboX_ws
 colcon build --symlink-install
 source install/setup.bash
 ros2 launch robot_bringup mobed_core.launch.py

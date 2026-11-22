@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(robot_interfaces REQUIRED)
+find_package(custom_msgs REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -83,7 +84,7 @@ target_link_libraries(mobed_control_node
   mobed_dynamics
   mobed_tasks
 )
-ament_target_dependencies(mobed_control_node rclcpp sensor_msgs std_msgs robot_interfaces)
+ament_target_dependencies(mobed_control_node rclcpp sensor_msgs std_msgs robot_interfaces custom_msgs)
 
 # INSTALL TARGETS
 install(TARGETS
@@ -105,6 +106,6 @@ install(DIRECTORY include/
 
 ament_export_include_directories(include)
 ament_export_libraries(mobed_kinematics mobed_estimation mobed_dynamics mobed_tasks mobed_controllers)
-ament_export_dependencies(Eigen3 rclcpp sensor_msgs std_msgs robot_interfaces)
+ament_export_dependencies(Eigen3 rclcpp sensor_msgs std_msgs robot_interfaces custom_msgs)
 
 ament_package()
