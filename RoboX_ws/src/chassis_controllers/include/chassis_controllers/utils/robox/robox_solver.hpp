@@ -48,10 +48,11 @@ struct RoboxCommandState {
 };
 
 struct RoboxSolverOutput {
-    Eigen::Vector4d target_steer_angles = Eigen::Vector4d::Zero();
-    Eigen::Vector4d target_ecc_angles   = Eigen::Vector4d::Zero();
-    Eigen::Vector4d target_ecc_torques  = Eigen::Vector4d::Zero();
-    Eigen::Vector4d target_wheel_speeds = Eigen::Vector4d::Zero();
+    Eigen::Vector4d target_steer_angles  = Eigen::Vector4d::Zero();
+    Eigen::Vector4d target_ecc_angles    = Eigen::Vector4d::Zero();
+    Eigen::Vector4d target_ecc_torques   = Eigen::Vector4d::Zero();
+    Eigen::Vector4d target_wheel_speeds  = Eigen::Vector4d::Zero();
+    Eigen::Vector4d target_wheel_torques = Eigen::Vector4d::Zero();
 
     std::array<bool, NUM_LEGS> ecc_override_mask{false, false, false, false};
     bool task_active           = false;
@@ -78,6 +79,7 @@ public:
     void setRobotModel(RobotModelType model_type);
     void setImuLeverArm(const Eigen::Vector3d& lever_arm);
     void setRequireImuForHoming(bool require) { require_imu_for_homing_ = require; }
+    void setWheelPiParams(double kp_wheel, double ki_wheel, double max_wheel_torque);
 
     bool setPayloadMass(double mass);
     bool setPostureMode(PostureConfiguration cfg);
@@ -85,7 +87,6 @@ public:
     bool setCurbHeight(double height);
 
     void resetOnEmergencyStop();
-    void resetOnWatchdogTimeout();
 
     double nominalDriveHeight() const { return nominal_drive_height_; }
     Eigen::Vector3d imuAccelBias() const { return state_estimator_->getAccelBias(); }
@@ -120,6 +121,9 @@ private:
     PostureConfiguration user_posture_config_ = PostureConfiguration::OUTWARD;
     double user_curb_height_  = 0.075;
     double user_payload_mass_ = 0.0;
+    double wheel_kp_          = 15.0;
+    double wheel_ki_          = 0.5;
+    double wheel_max_torque_  = 2.2;
 
     bool is_homing_ = true;
     double homing_timer_ = 0.0;

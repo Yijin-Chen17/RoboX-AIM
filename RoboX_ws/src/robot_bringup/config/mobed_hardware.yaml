@@ -3,16 +3,6 @@ dm_lk_robox_chassis_controller:
     robot_model: "robox_v2"
 
     # ==========================================================================
-    # 安全总开关与看门狗
-    # 首次实车架空标定零位与方向时，先保持 enable_motors: false（只读反馈不输出）
-    # 确认 12 个电机零位、正反方向与 IMU 均无误后，再改为 true
-    # ==========================================================================
-    enable_motors: false
-    use_ecc_torque_ff: true
-    motor_watchdog_timeout: 0.25   # s，任一电机离线/报错/超时未反馈则自动发 enable=0 卸力
-    cmd_timeout: 0.5               # s，上层控制指令超时则速度与小陀螺归零
-
-    # ==========================================================================
     # 极性与零位偏置（顺序固定为: [LF, RF, LB, RB]）
     # 实车安装方向或编码器零点与数学坐标系不同时，在此调整正负号与偏置(rad)
     # ==========================================================================
@@ -25,26 +15,23 @@ dm_lk_robox_chassis_controller:
     wheel_signs:   [-1.0, 1.0, -1.0, 1.0]
 
     # ==========================================================================
-    # 达妙 DM-J4310P-2EC (转向) / DM-J4340P-2EC V1.1 (偏心) MIT 参数
-    # 注意：实车首次带电调试建议先从较小 Kp (如 20~50) 起步，确认无振荡后再逐步调大
+    # 达妙 DM-J4310P-2EC (转向) / DM-J4340P-2EC V1.1 (偏心) Position With Speed Limit 参数
     # ==========================================================================
-    dm_steer_kp: 360.0
-    dm_steer_kd: 5.0
-    dm_steer_pmax: 3.141592653589793   # 需与 DMTools 上位机 PMax 一致（推荐设为 PI）
-
-    dm_ecc_kp: 125.0
-    dm_ecc_kd: 4.8
-    dm_ecc_pmax: 3.141592653589793     # 需与 DMTools 上位机 PMax 一致（推荐设为 PI）
+    dm_steer_speed_limit: 12.0         # rad/s (DM-J4310P 额定 120 rpm = 12.57 rad/s)
+    dm_ecc_speed_limit: 3.5            # rad/s (DM-J4340P 额定 36 rpm = 3.77 rad/s)
 
     # ==========================================================================
-    # 瓴控 LK MF9010 V2 (17T, 24V) 轮毂电机参数
+    # 瓴控 LK MF9010 V2 (17T, 24V) 轮毂电机 PI 闭环与广播电流参数
     # ==========================================================================
+    wheel_speed_kp: 15.0               # Nm / (rad/s)
+    wheel_speed_ki: 0.5                # Nm / rad
     wheel_kt: 0.16                     # Nm/A (17T 官方转矩常数)
     wheel_max_torque_nm: 2.2           # Nm (17T 最大转矩)
-    wheel_mf_max_current_a: 16.5       # A (EcatV2_Master MF 系列 2048 对应的满量程电流)
+    wheel_mf_max_current_a: 16.5       # A (Broadcast Current +/-2000 对应的满量程电流)
 
     # ==========================================================================
-    # EcatV2_Master 12 个电机与控制指令 ROS 2 话题映射（顺序: [LF, RF, LB, RB]）
+    # EcatV2_Master 12 个电机与控制指令 ROS 2 话题映射
+    # 转向/偏心顺序: [LF, RF, LB, RB]；轮毂 Broadcast Current 对应 Motor ID 1..4 = [LF, RF, LB, RB]
     # 需与 EcatV2_Master/src/soem_wrapper/config/config.yaml 中的 pub_topic / sub_topic 一致
     # ==========================================================================
     chassis_cmd_read_topic: "robox_chassis_command"
@@ -72,16 +59,8 @@ dm_lk_robox_chassis_controller:
       - "/ecat/ecc_lb/cmd"
       - "/ecat/ecc_rb/cmd"
 
-    wheel_motor_read_topics:
-      - "/ecat/wheel_lf/state"
-      - "/ecat/wheel_rf/state"
-      - "/ecat/wheel_lb/state"
-      - "/ecat/wheel_rb/state"
-    wheel_motor_write_topics:
-      - "/ecat/wheel_lf/cmd"
-      - "/ecat/wheel_rf/cmd"
-      - "/ecat/wheel_lb/cmd"
-      - "/ecat/wheel_rb/cmd"
+    wheel_motor_read_topic: "/ecat/wheel_motors/state"
+    wheel_motor_write_topic: "/ecat/wheel_motors/cmd"
 
     # ==========================================================================
     # HiPNUC CH010 IMU (G431 CAN 转发板, app_id=3)

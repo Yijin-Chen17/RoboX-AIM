@@ -13,23 +13,23 @@
 #   - HIPNUC IMU (CAN) [app_id=3]  pub_topic: "/imu"
 #   - SBUS RC          [app_id=11] pub_topic: "/ecat/sbus_rc"
 #
-#   [4x 转向电机 DM-J4310P-2EC, MIT 模式, app_id=12]
+#   [4x 转向电机 DM-J4310P-2EC, Position Control With Speed Limit 模式, app_id=12]
 #   - LF: pub_topic: "/ecat/steer_lf/state"  sub_topic: "/ecat/steer_lf/cmd"
 #   - RF: pub_topic: "/ecat/steer_rf/state"  sub_topic: "/ecat/steer_rf/cmd"
 #   - LB: pub_topic: "/ecat/steer_lb/state"  sub_topic: "/ecat/steer_lb/cmd"
 #   - RB: pub_topic: "/ecat/steer_rb/state"  sub_topic: "/ecat/steer_rb/cmd"
-#     (DMTools 与 TaskEditor 中建议 PMax=3.14159265, VMax=30.0, TMax=12.5, control_type=MIT)
+#     (DMTools 与 TaskEditor 中建议 PMax=3.14159265, VMax=30.0, TMax=12.5,
+#      control_type=Position Control With Speed Limit)
 #
-#   [4x 偏心电机 DM-J4340P-2EC V1.1, MIT 模式, app_id=12]
+#   [4x 偏心电机 DM-J4340P-2EC V1.1, Position Control With Speed Limit 模式, app_id=12]
 #   - LF: pub_topic: "/ecat/ecc_lf/state"    sub_topic: "/ecat/ecc_lf/cmd"
 #   - RF: pub_topic: "/ecat/ecc_rf/state"    sub_topic: "/ecat/ecc_rf/cmd"
 #   - LB: pub_topic: "/ecat/ecc_lb/state"    sub_topic: "/ecat/ecc_lb/cmd"
 #   - RB: pub_topic: "/ecat/ecc_rb/state"    sub_topic: "/ecat/ecc_rb/cmd"
-#     (DMTools 与 TaskEditor 中建议 PMax=3.14159265, VMax=10.0, TMax=40.0, control_type=MIT)
+#     (DMTools 与 TaskEditor 中建议 PMax=3.14159265, VMax=10.0, TMax=40.0,
+#      control_type=Position Control With Speed Limit)
 #
-#   [4x 驱动轮电机 LK MF9010 V2 17T, Speed With Torque Limit 模式, app_id=2]
-#   - LF: pub_topic: "/ecat/wheel_lf/state"  sub_topic: "/ecat/wheel_lf/cmd"
-#   - RF: pub_topic: "/ecat/wheel_rf/state"  sub_topic: "/ecat/wheel_rf/cmd"
-#   - LB: pub_topic: "/ecat/wheel_lb/state"  sub_topic: "/ecat/wheel_lb/cmd"
-#   - RB: pub_topic: "/ecat/wheel_rb/state"  sub_topic: "/ecat/wheel_rb/cmd"
+#   [4x 驱动轮电机 LK MF9010 V2 17T, Broadcast Current 模式 (1 个 4 合 1 任务), app_id=2]
+#   - 4 颗轮毂电机需接同一路 CAN，Driver ID 设为 1..4 分别对应 [LF, RF, LB, RB]
+#   - pub_topic: "/ecat/wheel_motors/state"  sub_topic: "/ecat/wheel_motors/cmd"
 # ==============================================================================

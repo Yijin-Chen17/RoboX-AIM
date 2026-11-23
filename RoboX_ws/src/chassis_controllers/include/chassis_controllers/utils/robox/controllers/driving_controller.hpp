@@ -91,6 +91,12 @@ public:
      */
     Eigen::Vector4d getWheelTorques() const { return wheel_torques_; }
 
+    void setWheelPiParams(const double kp_wheel, const double ki_wheel, const double max_wheel_torque) {
+        params_.kp_wheel         = kp_wheel;
+        params_.ki_wheel         = ki_wheel;
+        params_.max_wheel_torque = max_wheel_torque;
+    }
+
     double getSteeringError() const { return max_steer_error_; }
 
     /**

@@ -25,6 +25,7 @@ void RoboxSolver::setRobotModel(const RobotModelType model_type) {
 
     driving_controller_ = std::make_unique<controllers::DrivingController>(
         controllers::DrivingControllerParams{}, kinematics_);
+    driving_controller_->setWheelPiParams(wheel_kp_, wheel_ki_, wheel_max_torque_);
     balance_controller_ = std::make_unique<controllers::BalanceController>(
         controllers::BalanceControllerParams{}, kinematics_, robot_params_);
     balance_controller_->setPostureConfiguration(user_posture_config_);
@@ -54,6 +55,16 @@ void RoboxSolver::setRobotModel(const RobotModelType model_type) {
 
 void RoboxSolver::setImuLeverArm(const Eigen::Vector3d& lever_arm) {
     state_estimator_->setImuLeverArm(lever_arm);
+}
+
+void RoboxSolver::setWheelPiParams(
+    const double kp_wheel, const double ki_wheel, const double max_wheel_torque) {
+    wheel_kp_         = kp_wheel;
+    wheel_ki_         = ki_wheel;
+    wheel_max_torque_ = std::max(0.0, max_wheel_torque);
+    if (driving_controller_) {
+        driving_controller_->setWheelPiParams(wheel_kp_, wheel_ki_, wheel_max_torque_);
+    }
 }
 
 bool RoboxSolver::setPayloadMass(const double mass) {
@@ -122,11 +133,6 @@ void RoboxSolver::resetOnEmergencyStop() {
     prev_fsm_state_name_   = "IDLE";
     strafe_outward_active_ = false;
     strafe_exit_timer_     = 0.0;
-}
-
-void RoboxSolver::resetOnWatchdogTimeout() {
-    wheel_support_estimator_.reset();
-    balance_controller_->reset();
 }
 
 void RoboxSolver::updateAutoStrafePosture(
@@ -414,10 +420,12 @@ RoboxSolverOutput RoboxSolver::update(
         }
     }
 
-    Eigen::Vector4d target_ecc_torques = balance_out.ecc_torques;
+    Eigen::Vector4d target_ecc_torques   = balance_out.ecc_torques;
+    Eigen::Vector4d target_wheel_torques = driving_controller_->getWheelTorques();
     if (task_active) {
         const auto wheel_override_mask = task_controller_->getWheelOverrideMask();
         const auto wheel_overrides     = task_controller_->getWheelSpeedOverrides();
+        const auto climb_state         = task_controller_->getState();
         for (int i = 0; i < NUM_LEGS; ++i) {
             if (override_mask[i]) {
                 target_ecc_torques(i) = 0.0;
@@ -425,20 +433,39 @@ RoboxSolverOutput RoboxSolver::update(
             if (wheel_override_mask[i]) {
                 target_wheel(i) = wheel_overrides(i);
             }
+
+            if (climb_state == tasks::ClimbState::FRONT_WALL_CLIMB ||
+                climb_state == tasks::ClimbState::FRONT_VAULT_180) {
+                target_wheel_torques(i) += 1.5;
+            } else if (climb_state == tasks::ClimbState::STRADDLE_LEVELING) {
+                target_wheel_torques(i) += (i == FL || i == FR) ? 2.0 : 1.5;
+            } else if (climb_state == tasks::ClimbState::REAR_BELLY_REST ||
+                       climb_state == tasks::ClimbState::REAR_VAULT_LOOP) {
+                target_wheel_torques(i) += 2.0;
+            } else if (climb_state == tasks::ClimbState::REAR_CREEP_ADVANCE) {
+                target_wheel_torques(i) += 1.2;
+            } else if (climb_state == tasks::ClimbState::POST_CLIMB_RESET) {
+                target_wheel_torques(i) += 1.5;
+            } else if (climb_state == tasks::ClimbState::CLIMBED_RUN) {
+                target_wheel_torques(i) += 1.0;
+            }
         }
     }
+    target_wheel_torques = target_wheel_torques.cwiseMax(-wheel_max_torque_).cwiseMin(wheel_max_torque_);
 
-    out.target_steer_angles = target_steer;
-    out.target_ecc_angles   = target_ecc;
-    out.target_ecc_torques  = target_ecc_torques;
-    out.target_wheel_speeds = target_wheel;
-    out.ecc_override_mask   = override_mask;
-    out.task_active         = task_active;
+    out.target_steer_angles  = target_steer;
+    out.target_ecc_angles    = target_ecc;
+    out.target_ecc_torques   = target_ecc_torques;
+    out.target_wheel_speeds  = target_wheel;
+    out.target_wheel_torques = target_wheel_torques;
+    out.ecc_override_mask    = override_mask;
+    out.task_active          = task_active;
 
     out.unsafe = !out.target_steer_angles.allFinite() ||
                  !out.target_ecc_angles.allFinite() ||
                  !out.target_ecc_torques.allFinite() ||
-                 !out.target_wheel_speeds.allFinite();
+                 !out.target_wheel_speeds.allFinite() ||
+                 !out.target_wheel_torques.allFinite();
     return out;
 }
 
